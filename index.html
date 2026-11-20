@@ -5,19 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PIXEL DJ · 像素打碟机</title>
 <style>
-  /* ============ 基础 & 像素风变量 ============ */
+  /* ============ 基础 & 街机霓虹像素风变量 ============ */
   :root{
-    --ink:      #17325c;   /* 深蓝墨线 */
-    --deep:     #0e2340;   /* 最深蓝 */
-    --blue:     #3f7fd4;   /* 主蓝 */
-    --blue-lt:  #a9cdf2;   /* 浅蓝 */
-    --blue-pale:#e8f2fc;   /* 极浅蓝 */
-    --paper:    #f4f9ff;   /* 白纸 */
+    --ink:      #0b1a30;   /* 深墨线 */
+    --deep:     #061024;   /* 最深底 */
+    --blue:     #3fa9f5;   /* 街机蓝 */
+    --blue-lt:  #7fd8ff;   /* 亮青 */
+    --blue-pale:#bfe6ff;   /* 淡青 */
+    --paper:    #0d1f3c;   /* 面板深蓝（替换白底） */
     --white:    #ffffff;
     --gold:     #ffd85e;
-    --cyan:     #7fd8ff;
-    --red:      #ff7b7b;
-    --shadow:   #17325c;
+    --cyan:     #66f0ff;   /* 霓虹青 */
+    --magenta:  #ff5ec8;   /* 霓虹洋红 */
+    --red:      #ff6b6b;
+    --green:    #5cff9d;
+    --shadow:   #061024;
+    --panel:    rgba(8, 30, 60, .58);   /* 半透明面板 */
+    --panel-edge: #6fd4ff;
   }
   *{ box-sizing:border-box; margin:0; padding:0; }
   html,body{ height:100%; }
@@ -35,211 +39,350 @@
   #starry{
     position:fixed; inset:0; z-index:0;
     image-rendering: pixelated;
+    overflow:hidden;
   }
-  #starry canvas{
+  #starry canvas:not(.swirl){
     width:100%; height:100%;
     display:block;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    filter: saturate(1.25) contrast(1.05);
-    opacity:.92;
+    filter: saturate(1.35) contrast(1.08) brightness(1.05);
+    opacity:.95;
+    animation:starDrift 18s ease-in-out infinite alternate;
   }
+  /* 星空缓慢推移 + 明暗呼吸 + 轻微扭转，让背景“活”起来 */
+  @keyframes starDrift{
+    0%   { transform:scale(1.05) rotate(-0.8deg) translate(0,0);      filter:saturate(1.3) contrast(1.06) brightness(1.02); }
+    50%  { transform:scale(1.08) rotate(0.7deg)  translate(-1.2%,-0.7%); filter:saturate(1.45) contrast(1.1) brightness(1.1); }
+    100% { transform:scale(1.05) rotate(-0.6deg) translate(0.9%,0.5%);  filter:saturate(1.35) contrast(1.08) brightness(1.06); }
+  }
+
+  /* 三层反向旋转的扭曲旋涡，叠在星空上（screen 混合=发光） */
+  /* 外层容器负责静止的渐隐遮罩，内层负责旋转，两者互不干扰 */
+  #swirl-wrap{
+    position:absolute; inset:0;
+    pointer-events:none;
+    -webkit-mask-image:linear-gradient(to bottom, #000 34%, rgba(0,0,0,.5) 64%, transparent 84%);
+    mask-image:linear-gradient(to bottom, #000 34%, rgba(0,0,0,.5) 64%, transparent 84%);
+  }
+  #starry .swirl{
+    position:absolute;
+    left:50%; top:50%;
+    display:block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    mix-blend-mode:screen;
+    pointer-events:none;
+    will-change:transform;
+  }
+  #sw-a{
+    width:min(96vw, 108vh); height:min(96vw, 108vh);
+    margin:calc(min(96vw, 108vh) / -2);
+    opacity:.17;
+    animation:swirlA 78s linear infinite;
+  }
+  #sw-b{
+    width:min(68vw, 74vh); height:min(68vw, 74vh);
+    margin:calc(min(68vw, 74vh) / -2);
+    margin-left:calc(min(68vw, 74vh) / -2 + 17vw);
+    margin-top:calc(min(68vw, 74vh) / -2 - 13vh);
+    opacity:.19;
+    animation:swirlB 54s linear infinite reverse;
+  }
+  #sw-c{
+    width:min(52vw, 58vh); height:min(52vw, 58vh);
+    margin:calc(min(52vw, 58vh) / -2);
+    margin-left:calc(min(52vw, 58vh) / -2 - 26vw);
+    margin-top:calc(min(52vw, 58vh) / -2 + 12vh);
+    opacity:.14;
+    animation:swirlC 42s linear infinite;
+  }
+  @keyframes swirlA{ from{ transform:rotate(0deg)   scale(1);    } to{ transform:rotate(360deg)  scale(1);    } }
+  @keyframes swirlB{ from{ transform:rotate(0deg)   scale(1.06); } to{ transform:rotate(-360deg) scale(1.06); } }
+  @keyframes swirlC{ from{ transform:rotate(0deg)   scale(.94);  } to{ transform:rotate(360deg)  scale(.94);  } }
   /* 让背景保持明亮，只轻微压暗保证前景可读 */
   #bg-veil{
     position:fixed; inset:0; z-index:1; pointer-events:none;
     background:
-      radial-gradient(circle at 50% 45%, rgba(10,26,51,0) 0%, rgba(10,26,51,.12) 55%, rgba(6,18,36,.42) 100%);
+      radial-gradient(circle at 50% 42%, rgba(4,16,31,0) 0%, rgba(4,16,31,.22) 55%, rgba(2,8,18,.55) 100%),
+      /* 底部柔和压暗，让混音台控件可读（无硬边，不破坏悬浮感） */
+      linear-gradient(to bottom, transparent 68%, rgba(2,10,22,.45) 88%, rgba(2,10,22,.62) 100%);
+  }
+  /* 像素扫描线：街机 CRT 质感 */
+  #scanlines{
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    background:repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,.22) 0px,
+      rgba(0,0,0,.22) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+    mix-blend-mode:multiply;
+    opacity:.5;
+    animation:scanShift 8s linear infinite;
+  }
+  @keyframes scanShift{
+    from{ background-position:0 0; }
+    to  { background-position:0 3px; }
   }
 
-  /* ============ 通用像素边框 ============ */
+  /* ============ 滞空效果：无边框、无底色，控件直接浮在星空上 ============ */
   .pixel-box{
-    background:var(--paper);
-    border:4px solid var(--ink);
-    box-shadow:
-      0 0 0 2px var(--white) inset,
-      4px 4px 0 0 rgba(10,26,51,.55),
-      8px 8px 0 0 rgba(10,26,51,.18);
+    background:none;
+    border:none;
+    box-shadow:none;
     border-radius:0;
+    position:relative;
   }
+  /* 移除四角装饰 */
+  .pixel-box::before,
+  .pixel-box::after{ content:none; }
 
   /* ============ 布局 ============ */
   #app{
     position:relative; z-index:2;
     min-height:100vh;
-    padding:14px 18px 26px;
-    display:flex; flex-direction:column; gap:12px;
+    padding:8px 14px 10px;
+    display:flex; flex-direction:column; gap:6px;
   }
 
-  /* ---- 顶栏 ---- */
+  /* ---- 顶栏：悬浮，无框 ---- */
   #topbar{
     display:flex; align-items:center; gap:14px;
-    padding:10px 14px;
-    background:linear-gradient(180deg, #ffffff 0%, var(--blue-pale) 100%);
-    border:4px solid var(--ink);
-    box-shadow: 4px 4px 0 rgba(10,26,51,.5);
+    padding:6px 4px;
+    background:none;
+    border:none;
+    box-shadow:none;
   }
   #logo{
     font-size:22px; font-weight:900; letter-spacing:3px;
-    color:var(--deep);
-    text-shadow:2px 2px 0 var(--blue-lt);
+    color:var(--cyan);
+    text-shadow:
+      0 0 6px var(--cyan),
+      0 0 16px rgba(102,240,255,.8),
+      2px 2px 0 #05203a;
     white-space:nowrap;
+    animation:logoPulse 3.2s ease-in-out infinite;
   }
-  #logo .dot{ color:var(--blue); }
+  @keyframes logoPulse{
+    0%,100%{ text-shadow:0 0 6px var(--cyan), 0 0 16px rgba(102,240,255,.75), 2px 2px 0 #05203a; }
+    50%    { text-shadow:0 0 10px var(--cyan), 0 0 26px rgba(102,240,255,1), 2px 2px 0 #05203a; }
+  }
+  #logo .dot{ color:var(--magenta); text-shadow:0 0 10px var(--magenta); }
   #logo small{
     display:block; font-size:9px; letter-spacing:2px;
-    color:var(--blue); font-weight:700; text-shadow:none;
+    color:var(--blue-lt); font-weight:700; text-shadow:0 0 6px rgba(127,216,255,.7);
   }
 
-  .seg{ display:flex; border:3px solid var(--ink); background:var(--blue-pale); }
+  .seg{
+    display:flex;
+    border:2px solid rgba(102,240,255,.55);
+    background:rgba(4,16,34,.35);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    box-shadow:0 0 10px rgba(102,240,255,.35);
+  }
   .seg button{
     font:inherit; font-size:12px; font-weight:800; letter-spacing:1px;
     padding:7px 16px; cursor:pointer; border:0; background:transparent;
-    color:var(--deep); border-right:3px solid var(--ink);
-    transition:background .08s;
+    color:var(--blue-pale); border-right:2px solid rgba(111,212,255,.4);
+    transition:background .08s, color .08s;
   }
   .seg button:last-child{ border-right:0; }
-  .seg button:hover{ background:var(--white); }
+  .seg button:hover{ background:rgba(111,212,255,.16); color:var(--cyan); }
   .seg button.active{
-    background:var(--blue); color:var(--white);
-    text-shadow:1px 1px 0 var(--deep);
-    box-shadow: inset 0 0 0 2px var(--white);
+    background:linear-gradient(180deg, var(--cyan), var(--blue));
+    color:#04101f;
+    text-shadow:0 1px 0 rgba(255,255,255,.5);
+    box-shadow:0 0 12px var(--cyan), inset 0 0 0 2px rgba(255,255,255,.35);
   }
 
   #top-right{ margin-left:auto; display:flex; align-items:center; gap:12px; }
 
   .master-wrap{
     display:flex; align-items:center; gap:8px;
-    padding:6px 12px; border:3px solid var(--ink); background:var(--white);
+    padding:4px 10px;
+    border:2px solid rgba(102,240,255,.45);
+    background:rgba(4,16,34,.32);
+    backdrop-filter:blur(6px);
+    -webkit-backdrop-filter:blur(6px);
+    box-shadow:0 0 10px rgba(102,240,255,.3);
   }
-  .master-wrap label{ font-size:10px; font-weight:800; letter-spacing:1px; }
+  .master-wrap label{
+    font-size:10px; font-weight:800; letter-spacing:1px; color:var(--cyan);
+    text-shadow:0 0 8px rgba(102,240,255,.8);
+  }
 
-  /* 顶栏推子(横) */
+  /* 顶栏推子(横)：淡黄色细线轨道 */
   input[type=range]{
     -webkit-appearance:none; appearance:none;
     background:transparent; cursor:pointer;
   }
   input[type=range]::-webkit-slider-runnable-track{
-    height:10px; background:var(--blue-pale);
-    border:2px solid var(--ink);
-    box-shadow: inset 2px 2px 0 rgba(23,50,92,.25);
+    height:3px;
+    background:linear-gradient(90deg,
+      rgba(255,226,140,.55) 0%,
+      rgba(255,238,180,.85) 50%,
+      rgba(255,226,140,.55) 100%);
+    border:none;
+    box-shadow:0 0 8px rgba(255,226,140,.55);
   }
   input[type=range]::-webkit-slider-thumb{
     -webkit-appearance:none; appearance:none;
-    width:16px; height:22px; margin-top:-8px;
-    background:linear-gradient(180deg,#fff 0%,var(--blue-lt) 55%,var(--blue) 100%);
-    border:2px solid var(--ink);
-    box-shadow: 2px 2px 0 rgba(23,50,92,.4);
+    width:12px; height:18px; margin-top:-8px;
+    background:linear-gradient(180deg,#fff8dc,rgba(255,226,140,.95));
+    border:1px solid rgba(255,240,190,.9);
+    box-shadow:0 0 12px rgba(255,226,140,.9), 2px 2px 0 rgba(0,0,0,.55);
   }
   input[type=range]::-moz-range-track{
-    height:10px; background:var(--blue-pale); border:2px solid var(--ink);
+    height:3px;
+    background:rgba(255,238,180,.75);
+    border:none; box-shadow:0 0 8px rgba(255,226,140,.5);
   }
   input[type=range]::-moz-range-thumb{
-    width:14px; height:20px; border-radius:0;
-    background:linear-gradient(180deg,#fff,var(--blue));
-    border:2px solid var(--ink);
+    width:11px; height:17px; border-radius:0;
+    background:linear-gradient(180deg,#fff8dc,rgba(255,226,140,.95));
+    border:1px solid rgba(255,240,190,.9);
+    box-shadow:0 0 12px rgba(255,226,140,.9);
   }
   .val-chip{
-    min-width:44px; text-align:center;
+    min-width:42px; text-align:center;
     font-size:10px; font-weight:800;
-    background:var(--deep); color:var(--cyan);
-    padding:3px 5px; border:2px solid var(--ink);
+    background:none; color:#ffe98c;
+    padding:0 2px; border:none;
+    text-shadow:0 0 10px rgba(255,226,140,.9), 0 1px 2px rgba(0,0,0,.9);
   }
 
   /* ---- 主区 ---- */
   #decks{
     flex:1;
-    display:grid; gap:14px;
+    display:grid; gap:clamp(8px, 2vw, 28px);
     grid-template-columns: repeat(2, minmax(0,1fr));
     align-items:stretch;
   }
   #decks.three{ grid-template-columns: repeat(3, minmax(0,1fr)); }
 
-  /* ---- 单个转盘 ---- */
+  /* ---- 单个转盘：无框悬浮 ---- */
   .deck{
-    display:flex; flex-direction:column; gap:10px;
-    padding:12px;
+    display:flex; flex-direction:column; gap:6px;
+    padding:0;
     min-width:0;
-    background:rgba(244,249,255,.80);
-    backdrop-filter:blur(2px) saturate(1.1);
-    border-color:rgba(23,50,92,.85);
+    justify-content:center;
+  }
+  /* 悬浮控件加暗色投影，保证在星空上可读 */
+  .deck-head,
+  .row,
+  .fx-grid,
+  .transport{
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.95)) drop-shadow(0 0 2px rgba(0,0,0,.9));
+  }
+  #mixer{
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.95)) drop-shadow(0 0 2px rgba(0,0,0,.9));
   }
   .deck-head{
     display:flex; align-items:center; gap:8px;
   }
   .deck-tag{
     font-size:13px; font-weight:900; letter-spacing:2px;
-    background:var(--blue); color:#fff;
-    padding:4px 10px; border:3px solid var(--ink);
-    text-shadow:1px 1px 0 var(--deep);
+    background:linear-gradient(180deg,var(--cyan),var(--blue));
+    color:#04101f;
+    padding:4px 10px; border:2px solid #04101f;
+    text-shadow:0 1px 0 rgba(255,255,255,.45);
+    box-shadow:0 0 12px rgba(102,240,255,.75);
   }
   .deck-name{
     flex:1; min-width:0; font-size:10px; font-weight:700;
-    color:var(--deep); opacity:.75;
+    color:var(--blue-pale); opacity:.9;
+    text-shadow:0 0 6px rgba(127,216,255,.5);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .deck-state{
     font-size:9px; font-weight:800; letter-spacing:1px;
-    padding:3px 7px; border:2px solid var(--ink);
-    background:var(--blue-pale); color:var(--blue);
+    padding:3px 7px; border:2px solid rgba(127,216,255,.5);
+    background:#04101f; color:var(--blue-lt);
+    text-shadow:0 0 6px rgba(127,216,255,.8);
   }
-  .deck-state.playing{ background:var(--gold); color:var(--deep); }
+  .deck-state.playing{
+    background:linear-gradient(180deg,var(--gold),#ffa62b);
+    color:#2a1600; border-color:var(--gold);
+    box-shadow:0 0 14px var(--gold);
+    text-shadow:none;
+  }
 
-  /* ---- 转盘(唱盘) ---- */
+/* ---- 转盘：梵高像素月亮 ---- */
   .platter-wrap{
     position:relative;
-    width:100%; aspect-ratio:1/1;
-    max-width:340px; margin:0 auto;
+    width:100%;
+    max-width:min(100%, clamp(190px, calc(100vh - 480px), 560px));
+    aspect-ratio:1/1;
+    margin:2px auto;
     display:grid; place-items:center;
+    cursor:pointer;
   }
-  .platter{
+  /* 月亮画布（待机时缓慢呼吸发光） */
+  .moon-spin{
     position:absolute; inset:0;
-    border-radius:50%;
-    border:5px solid var(--ink);
-    background:
-      repeating-conic-gradient(from 0deg, #12294a 0deg 6deg, #1d3a61 6deg 12deg);
-    box-shadow:
-      0 0 0 5px var(--blue-lt),
-      0 0 0 9px var(--ink),
-      0 10px 0 rgba(10,26,51,.35);
-    transition:transform .2s;
+    display:block;
   }
-  .platter.spin{ animation:spin 1.8s linear infinite; }
+  .moon-canvas{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    display:block;
+    pointer-events:none;
+    filter:drop-shadow(0 0 18px rgba(255,226,120,.55))
+           drop-shadow(0 0 44px rgba(255,200,60,.30));
+    animation:moonBreath 5s ease-in-out infinite;
+  }
+  @keyframes moonBreath{
+    0%,100%{ filter:drop-shadow(0 0 14px rgba(255,226,120,.45)) drop-shadow(0 0 36px rgba(255,200,60,.22)); }
+    50%    { filter:drop-shadow(0 0 26px rgba(255,238,160,.85)) drop-shadow(0 0 62px rgba(255,200,60,.45)); }
+  }
+  /* 播放时月亮缓缓旋转（时长由 JS 设置） */
+  .moon-spin.spin{
+    animation:spin var(--spin-dur, 6s) linear infinite;
+  }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 
-  /* 播放进度环 */
-  .progress-arc{
+  /* 流星层 */
+  .meteor-canvas{
     position:absolute; inset:0;
+    width:100%; height:100%;
+    display:block;
+    pointer-events:none;
+    z-index:6;
+  }
+
+  /* 播放进度环（细淡黄线） */
+  .progress-arc{
+    position:absolute; inset:-2%;
     border-radius:50%;
     pointer-events:none;
-    z-index:3;
+    z-index:5;
   }
   .progress-arc svg{ width:100%; height:100%; display:block; overflow:visible; }
-  .progress-arc .pv-bg{ fill:none; stroke:rgba(255,255,255,.22); stroke-width:5; }
-  .progress-arc .pv-fg{ fill:none; stroke:var(--cyan); stroke-width:5; stroke-linecap:butt; filter:drop-shadow(0 0 4px rgba(127,216,255,.9)); }
+  .progress-arc .pv-bg{ fill:none; stroke:rgba(255,226,140,.14); stroke-width:2; }
+  .progress-arc .pv-fg{
+    fill:none; stroke:rgba(255,226,140,.9); stroke-width:2; stroke-linecap:butt;
+    filter:drop-shadow(0 0 5px rgba(255,226,140,.9));
+  }
 
   /* 拖放高亮 */
-  .platter-wrap.dragover .platter{
-    box-shadow:
-      0 0 0 5px var(--gold),
-      0 0 0 9px var(--ink),
-      0 0 26px rgba(255,216,94,.8);
+  .platter-wrap.dragover .moon-canvas{
+    filter:drop-shadow(0 0 26px rgba(255,216,94,1))
+           drop-shadow(0 0 70px rgba(255,216,94,.8));
   }
-  .platter-wrap.dragover .label{ border-color:var(--gold); }
 
-  /* 中间标签 + 波形 */
+  /* 中间文字区（无框，直接浮在月亮上） */
+  /* 中间文字区（波形收在月亮暗面里，不破坏月牙形状） */
   .label{
-    position:absolute; inset:16%;
-    border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, var(--white) 0%, var(--blue-pale) 45%, var(--blue-lt) 100%);
-    border:4px solid var(--ink);
-    display:grid; place-items:center;
-    overflow:hidden;
-  }
-  .label .hole{
     position:absolute;
-    width:7%; height:7%; border-radius:50%;
-    background:var(--deep); border:2px solid var(--ink);
-    z-index:3;
+    left:50%; top:50%;
+    width:52%; height:52%;
+    transform:translate(-50%,-50%);
+    display:grid; place-items:center;
+    pointer-events:none;
+    z-index:4;
   }
   .label canvas{
     position:absolute; inset:0;
@@ -249,38 +392,23 @@
   .label .empty-hint{
     position:relative; z-index:2;
     font-size:11px; font-weight:800; letter-spacing:1px;
-    color:var(--blue); text-align:center; padding:0 18px;
-    line-height:1.6;
+    color:#a8cdf0; text-align:center; padding:0 18px;
+    line-height:1.7;
     pointer-events:none;
+    text-shadow:0 0 10px rgba(102,240,255,.85), 0 1px 2px rgba(0,0,0,.85);
+    animation:hintBlink 2.6s ease-in-out infinite;
   }
-
-  /* 唱臂 */
-  .arm{
-    position:absolute; top:-4%; right:2%;
-    width:10%; height:52%;
-    transform-origin: 50% 6%;
-    transform: rotate(0deg);
-    transition:transform .6s cubic-bezier(.3,1.4,.5,1);
-    pointer-events:none; z-index:4;
+  @keyframes hintBlink{
+    0%,100%{ opacity:.6; }
+    50%    { opacity:1; }
   }
-  .arm::before{
-    content:""; position:absolute; left:50%; top:0;
-    width:6px; height:100%; margin-left:-3px;
-    background:linear-gradient(90deg,#fff,var(--blue-lt),var(--blue));
-    border:2px solid var(--ink);
-  }
-  .arm::after{
-    content:""; position:absolute; left:50%; bottom:-6px;
-    width:16px; height:14px; margin-left:-8px;
-    background:var(--deep); border:2px solid var(--ink);
-  }
-  .arm.on{ transform:rotate(26deg); }
 
   /* ---- 控制条 ---- */
   .row{ display:flex; align-items:center; gap:8px; }
   .row-label{
     font-size:9px; font-weight:900; letter-spacing:1px;
-    color:var(--blue); min-width:34px; text-align:right;
+    color:var(--blue-lt); min-width:34px; text-align:right;
+    text-shadow:0 0 6px rgba(127,216,255,.6);
   }
 
   /* 横向音量推子 */
@@ -292,25 +420,32 @@
   .speeds button{
     font:inherit; font-size:9px; font-weight:800;
     padding:5px 0; cursor:pointer;
-    background:var(--white); color:var(--deep);
-    border:2px solid var(--ink);
-    box-shadow:2px 2px 0 rgba(10,26,51,.28);
-    transition:transform .05s, background .08s;
+    background:rgba(4,16,31,.28); color:var(--blue-pale);
+    border:1px solid rgba(127,216,255,.22);
+    box-shadow:none;
+    backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+    transition:transform .05s, background .08s, color .08s, box-shadow .08s;
   }
-  .speeds button:hover{ background:var(--blue-pale); }
+  .speeds button:hover{
+    background:rgba(111,212,255,.18); color:var(--cyan);
+    box-shadow:2px 2px 0 rgba(0,0,0,.5), 0 0 10px rgba(102,240,255,.6);
+  }
   .speeds button:active{ transform:translate(2px,2px); box-shadow:none; }
   .speeds button.on{
-    background:var(--blue); color:#fff;
-    text-shadow:1px 1px 0 var(--deep);
-    box-shadow: inset 0 0 0 2px var(--white);
+    background:linear-gradient(180deg,var(--cyan),var(--blue));
+    color:#04101f;
+    text-shadow:0 1px 0 rgba(255,255,255,.5);
+    box-shadow:0 0 14px var(--cyan), inset 0 0 0 2px rgba(255,255,255,.35);
   }
 
   /* ---- 效果器旋钮区 ---- */
   .fx-grid{
     display:grid; grid-template-columns:repeat(4,1fr);
-    gap:6px; padding:8px 4px 2px;
-    border-top:3px dashed var(--blue-lt);
-    border-bottom:3px dashed var(--blue-lt);
+    gap:6px; padding:6px 4px 2px;
+    border-top:1px dashed rgba(127,216,255,.18);
+    border-bottom:1px dashed rgba(127,216,255,.18);
   }
   .knob-cell{
     display:flex; flex-direction:column; align-items:center; gap:3px;
@@ -323,88 +458,142 @@
     touch-action:none;
   }
   .knob svg{ width:100%; height:100%; display:block; overflow:visible; }
-  .knob .face{ fill:var(--white); stroke:var(--ink); stroke-width:4; }
-  .knob .arc-bg{ fill:none; stroke:var(--blue-pale); stroke-width:5; }
-  .knob .arc-fg{ fill:none; stroke:var(--blue); stroke-width:5; stroke-linecap:butt; }
-  .knob .needle{ stroke:var(--deep); stroke-width:4; stroke-linecap:round; }
-  .knob .cap{ fill:var(--blue-lt); stroke:var(--ink); stroke-width:3; }
-  .knob:hover .face{ fill:var(--blue-pale); }
-  .knob.active .arc-fg{ stroke:var(--gold); }
+  /* 街机旋钮：深底 + 霓虹弧 */
+  .knob .face{
+    fill:#071a33; stroke:var(--blue-lt); stroke-width:3;
+    filter:drop-shadow(0 0 4px rgba(127,216,255,.55));
+  }
+  .knob .arc-bg{ fill:none; stroke:rgba(127,216,255,.22); stroke-width:5; }
+  .knob .arc-fg{
+    fill:none; stroke:var(--cyan); stroke-width:5; stroke-linecap:butt;
+    filter:drop-shadow(0 0 5px var(--cyan));
+  }
+  .knob .needle{
+    stroke:var(--cyan); stroke-width:4; stroke-linecap:round;
+    filter:drop-shadow(0 0 5px var(--cyan));
+  }
+  .knob .cap{
+    fill:var(--magenta); stroke:#04101f; stroke-width:2;
+    filter:drop-shadow(0 0 6px var(--magenta));
+  }
+  .knob:hover .face{ fill:#0c2b4f; stroke:var(--cyan); }
+  .knob.active .arc-fg{ stroke:var(--gold); filter:drop-shadow(0 0 7px var(--gold)); }
+  .knob.active .needle{ stroke:var(--gold); filter:drop-shadow(0 0 7px var(--gold)); }
   .fx-name{
-    font-size:9px; font-weight:900; letter-spacing:.5px; color:var(--deep);
+    font-size:9px; font-weight:900; letter-spacing:.5px;
+    color:var(--blue-pale); text-shadow:0 0 6px rgba(127,216,255,.55);
   }
   .fx-val{
-    font-size:8px; font-weight:800; color:var(--blue);
-    background:var(--blue-pale); padding:1px 4px; border:1px solid var(--ink);
+    font-size:8px; font-weight:800; color:var(--green);
+    background:#04101f; padding:1px 4px;
+    border:1px solid rgba(92,255,157,.5);
+    text-shadow:0 0 6px var(--green);
     min-width:30px; text-align:center;
   }
-  .knob-cell.off{ opacity:.42; filter:grayscale(.5); }
+  .knob-cell.off{ opacity:.38; filter:grayscale(.7); }
   .knob-cell.off .knob{ cursor:pointer; }
   .fx-toggle{
     font:inherit; font-size:8px; font-weight:900; letter-spacing:1px;
     padding:2px 8px; cursor:pointer;
-    border:2px solid var(--ink); background:var(--white); color:var(--deep);
-    box-shadow:1px 1px 0 rgba(10,26,51,.3);
+    border:2px solid rgba(127,216,255,.45);
+    background:#04101f; color:var(--blue-lt);
+    box-shadow:1px 1px 0 rgba(0,0,0,.5);
   }
-  .fx-toggle.on{ background:var(--cyan); color:var(--deep); }
+  .fx-toggle.on{
+    background:linear-gradient(180deg,var(--green),#25c96a);
+    color:#04160c; border-color:var(--green);
+    box-shadow:0 0 12px rgba(92,255,157,.8);
+  }
 
   /* ---- 传输按钮 ---- */
   .transport{ display:flex; gap:6px; }
   .tbtn{
     flex:1; font:inherit; font-size:11px; font-weight:900; letter-spacing:1px;
-    padding:9px 4px; cursor:pointer;
-    border:3px solid var(--ink);
-    background:linear-gradient(180deg,#fff,var(--blue-pale));
-    color:var(--deep);
-    box-shadow:3px 3px 0 rgba(10,26,51,.4);
-    transition:transform .05s, filter .1s;
+    padding:7px 4px; cursor:pointer;
+    border:1px solid rgba(127,216,255,.28);
+    background:rgba(4,16,31,.3);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    color:var(--blue-pale);
+    text-shadow:0 1px 3px rgba(0,0,0,.95);
+    box-shadow:none;
+    transition:transform .05s, filter .1s, box-shadow .1s, background .1s;
   }
-  .tbtn:hover{ filter:brightness(1.06); background:var(--white); }
+  .tbtn:hover{
+    filter:brightness(1.25);
+    color:var(--cyan);
+    box-shadow:3px 3px 0 rgba(0,0,0,.55), 0 0 12px rgba(102,240,255,.55);
+  }
   .tbtn:active{ transform:translate(3px,3px); box-shadow:none; }
-  .tbtn.play{ background:linear-gradient(180deg,#eaffea,#9be6a8); }
-  .tbtn.play.on{ background:linear-gradient(180deg,#7ed68f,#3fae57); color:#fff; text-shadow:1px 1px 0 #1c5c2b; }
-  .tbtn.stop{ background:linear-gradient(180deg,#fff,#ffd9d9); }
+  .tbtn.play{
+    background:rgba(10,50,30,.32);
+    border-color:rgba(92,255,157,.35); color:var(--green);
+  }
+  .tbtn.play.on{
+    background:linear-gradient(180deg,rgba(92,255,157,.9),rgba(31,174,92,.9));
+    color:#04160c; border-color:var(--green);
+    text-shadow:0 1px 0 rgba(255,255,255,.4);
+    box-shadow:0 0 20px rgba(92,255,157,.9);
+  }
+  .tbtn.stop{
+    background:rgba(60,10,18,.32);
+    border-color:rgba(255,107,107,.35); color:#ff8f8f;
+  }
+  .tbtn.stop:hover{ color:var(--red); box-shadow:0 0 12px rgba(255,107,107,.6); }
 
   /* ---- 底部混音台 ---- */
   #mixer{
-    padding:10px 14px;
+    padding:4px 0;
     display:flex; align-items:center; gap:14px; flex-wrap:wrap;
   }
   #mixer .m-title{
-    font-size:10px; font-weight:900; letter-spacing:2px; color:var(--blue);
-    writing-mode:horizontal-tb;
+    font-size:10px; font-weight:900; letter-spacing:2px;
+    color:var(--cyan); writing-mode:horizontal-tb;
+    text-shadow:0 0 8px rgba(102,240,255,.85);
   }
   .xfader-wrap{
     flex:1; min-width:220px;
     display:flex; align-items:center; gap:8px;
   }
   .xfader-wrap .side{
-    font-size:10px; font-weight:900; color:var(--deep);
-    background:var(--blue-pale); padding:2px 7px; border:2px solid var(--ink);
+    font-size:10px; font-weight:900;
+    color:#ffe98c; background:none;
+    padding:0 2px;
+    border:none;
+    text-shadow:0 0 10px rgba(255,226,140,.9), 0 1px 2px rgba(0,0,0,.9);
   }
   .xfader-wrap input[type=range]{ flex:1; min-width:0; }
   .xfader-wrap input[type=range]::-webkit-slider-runnable-track{
-    height:14px;
-    background:var(--blue-pale);
-    border:3px solid var(--ink);
-    box-shadow: inset 0 0 0 2px var(--white), inset 2px 2px 0 rgba(23,50,92,.22);
+    height:3px;
+    background:linear-gradient(90deg,
+      rgba(255,226,140,.45) 0%,
+      rgba(255,238,180,.9) 50%,
+      rgba(255,226,140,.45) 100%);
+    border:none;
+    box-shadow:0 0 10px rgba(255,226,140,.55);
   }
   .xfader-wrap input[type=range]::-webkit-slider-thumb{
-    width:22px; height:32px; margin-top:-12px;
-    background:linear-gradient(180deg,#fff 0%,var(--gold) 70%,#d9a400 100%);
-    border:3px solid var(--ink);
-    box-shadow: 2px 2px 0 rgba(23,50,92,.45);
+    width:14px; height:24px; margin-top:-11px;
+    background:linear-gradient(180deg,#fff8dc,rgba(255,226,140,.95));
+    border:1px solid rgba(255,240,190,.95);
+    box-shadow:0 0 16px rgba(255,226,140,1), 2px 2px 0 rgba(0,0,0,.6);
   }
   .xfader-wrap input[type=range]::-moz-range-track{
-    height:14px; background:var(--blue-pale); border:3px solid var(--ink);
+    height:3px; background:rgba(255,238,180,.8); border:none;
+    box-shadow:0 0 10px rgba(255,226,140,.5);
   }
   .xfader-wrap input[type=range]::-moz-range-thumb{
-    width:20px; height:30px; border-radius:0;
-    background:linear-gradient(180deg,#fff,var(--gold)); border:3px solid var(--ink);
+    width:13px; height:22px; border-radius:0;
+    background:linear-gradient(180deg,#fff8dc,rgba(255,226,140,.95));
+    border:1px solid rgba(255,240,190,.95);
+    box-shadow:0 0 16px rgba(255,226,140,1);
   }
   .hint-strip{
-    font-size:9px; color:var(--blue); font-weight:700; letter-spacing:.5px;
-    background:var(--blue-pale); padding:5px 9px; border:2px dashed var(--blue-lt);
+    font-size:9px; color:var(--blue-lt); font-weight:700; letter-spacing:.5px;
+    background:none; padding:0;
+    border:none;
+    text-shadow:0 0 6px rgba(127,216,255,.7), 0 1px 3px rgba(0,0,0,.9);
+    opacity:.85;
   }
 
   /* 交叉推子读数 */
@@ -425,68 +614,88 @@
   }
   @keyframes pop{ from{ transform:scale(.86); opacity:0; } to{ transform:scale(1); opacity:1; } }
   .modal-head{
-    background:linear-gradient(180deg,var(--white),var(--blue-lt));
-    border-bottom:4px solid var(--ink);
+    background:linear-gradient(180deg, rgba(102,240,255,.28), rgba(63,169,245,.10));
+    border-bottom:2px solid var(--cyan);
     padding:12px 16px;
     display:flex; align-items:center; gap:8px;
   }
-  .modal-head .ico{ font-size:16px; }
+  .modal-head .ico{
+    font-size:16px; color:var(--cyan);
+    text-shadow:0 0 10px var(--cyan);
+  }
   .modal-head h3{
-    font-size:14px; font-weight:900; letter-spacing:2px; color:var(--deep);
-    text-shadow:1px 1px 0 var(--white);
+    font-size:14px; font-weight:900; letter-spacing:2px;
+    color:var(--cyan);
+    text-shadow:0 0 10px rgba(102,240,255,.9);
     flex:1;
   }
   .modal-body{
-    padding:16px; font-size:12px; line-height:1.75; color:var(--deep);
+    padding:16px; font-size:12px; line-height:1.8;
+    color:var(--blue-pale);
     background:
-      repeating-linear-gradient(0deg, rgba(63,127,212,.045) 0px 2px, transparent 2px 4px),
-      var(--paper);
+      repeating-linear-gradient(0deg, rgba(102,240,255,.055) 0px 2px, transparent 2px 4px),
+      rgba(4,16,31,.82);
     max-height:60vh; overflow:auto;
   }
+  .modal-body b{ color:var(--cyan); text-shadow:0 0 8px rgba(102,240,255,.7); }
   .modal-body p + p{ margin-top:8px; }
   .modal-body code{
-    background:var(--blue-pale); border:1px solid var(--blue-lt);
+    background:rgba(102,240,255,.14);
+    border:1px solid rgba(102,240,255,.45);
+    color:var(--cyan);
     padding:1px 4px; font-size:11px;
   }
   .modal-foot{
     padding:12px 16px; display:flex; gap:10px; justify-content:flex-end;
-    border-top:4px solid var(--ink); background:var(--blue-pale);
+    border-top:2px solid var(--cyan);
+    background:rgba(4,16,31,.9);
     flex-wrap:wrap;
   }
   .modal-btn{
     font:inherit; font-size:12px; font-weight:900; letter-spacing:1px;
     padding:9px 18px; cursor:pointer;
-    border:3px solid var(--ink);
-    background:linear-gradient(180deg,#fff,var(--blue-pale));
-    color:var(--deep);
-    box-shadow:3px 3px 0 rgba(10,26,51,.45);
-    transition:transform .05s;
+    border:2px solid rgba(127,216,255,.6);
+    background:linear-gradient(180deg,#0b2444,#04101f);
+    color:var(--blue-pale);
+    box-shadow:3px 3px 0 rgba(0,0,0,.6);
+    transition:transform .05s, box-shadow .1s, color .1s;
   }
-  .modal-btn:hover{ background:var(--white); }
+  .modal-btn:hover{
+    color:var(--cyan);
+    box-shadow:3px 3px 0 rgba(0,0,0,.6), 0 0 14px rgba(102,240,255,.6);
+  }
   .modal-btn:active{ transform:translate(3px,3px); box-shadow:none; }
   .modal-btn.primary{
-    background:linear-gradient(180deg,var(--blue-lt),var(--blue));
-    color:#fff; text-shadow:1px 1px 0 var(--deep);
+    background:linear-gradient(180deg,var(--cyan),var(--blue));
+    color:#04101f; border-color:var(--cyan);
+    text-shadow:0 1px 0 rgba(255,255,255,.45);
+    box-shadow:3px 3px 0 rgba(0,0,0,.6), 0 0 16px rgba(102,240,255,.8);
   }
-  .modal-btn.primary:hover{ filter:brightness(1.08); }
+  .modal-btn.primary:hover{ filter:brightness(1.12); }
 
   /* URL 输入框 */
   .field{
     width:100%; font:inherit; font-size:12px; padding:9px 10px;
-    border:3px solid var(--ink); background:var(--white); color:var(--deep);
+    border:2px solid rgba(127,216,255,.55);
+    background:#04101f; color:var(--cyan);
     outline:none;
   }
-  .field:focus{ box-shadow:0 0 0 3px var(--gold) inset; }
+  .field::placeholder{ color:rgba(127,216,255,.45); }
+  .field:focus{
+    border-color:var(--cyan);
+    box-shadow:0 0 0 2px rgba(102,240,255,.3), 0 0 14px rgba(102,240,255,.55);
+  }
   .field-row{ display:flex; gap:8px; margin-top:10px; }
 
   /* 全局提示 toast */
   #toast{
     position:fixed; left:50%; bottom:86px; z-index:9500;
     transform:translate(-50%, 200%);
-    background:var(--deep); color:var(--cyan);
+    background:rgba(4,16,31,.95); color:var(--cyan);
     font-size:12px; font-weight:800; letter-spacing:1px;
-    padding:10px 18px; border:3px solid var(--blue-lt);
-    box-shadow:4px 4px 0 rgba(0,0,0,.5);
+    padding:10px 18px; border:2px solid var(--cyan);
+    box-shadow:0 0 18px rgba(102,240,255,.7), 4px 4px 0 rgba(0,0,0,.5);
+    text-shadow:0 0 8px rgba(102,240,255,.8);
     transition:transform .22s cubic-bezier(.3,1.5,.5,1), opacity .22s;
     pointer-events:none; max-width:90vw; text-align:center;
     opacity:0;
@@ -515,8 +724,16 @@
 <body>
 
 <!-- 梵高星空像素背景 -->
-<div id="starry"><canvas id="starry-canvas"></canvas></div>
+<div id="starry">
+  <canvas id="starry-canvas"></canvas>
+  <div id="swirl-wrap">
+    <canvas class="swirl" id="sw-a"></canvas>
+    <canvas class="swirl" id="sw-b"></canvas>
+    <canvas class="swirl" id="sw-c"></canvas>
+  </div>
+</div>
 <div id="bg-veil"></div>
+<div id="scanlines"></div>
 
 <div id="app">
 
@@ -721,13 +938,14 @@ class Deck {
       </div>
 
       <div class="platter-wrap" title="拖入 MP3/WAV 文件，或点击转盘加载">
-        <div class="platter"></div>
-        <div class="progress-arc"></div>
+        <div class="moon-spin">
+          <canvas class="moon-canvas" width="360" height="360"></canvas>
+        </div>
         <div class="label">
           <div class="empty-hint">点击 / 拖入<br>音频文件</div>
-          <div class="hole"></div>
         </div>
-        <div class="arm"></div>
+        <div class="progress-arc"></div>
+        <canvas class="meteor-canvas" width="360" height="360"></canvas>
       </div>
 
       <div class="row">
@@ -756,11 +974,12 @@ class Deck {
 
     /* 引用 */
     this.el.platterWrap = el.querySelector('.platter-wrap');
-    this.el.platter     = el.querySelector('.platter');
+    this.el.moon        = el.querySelector('.moon-canvas');
+    this.el.moonSpin    = el.querySelector('.moon-spin');
+    this.el.meteor      = el.querySelector('.meteor-canvas');
     this.el.progressArc = el.querySelector('.progress-arc');
     this.el.label       = el.querySelector('.label');
     this.el.hint        = el.querySelector('.empty-hint');
-    this.el.arm         = el.querySelector('.arm');
     this.el.name        = el.querySelector('.deck-name');
     this.el.stateTag    = el.querySelector('.deck-state');
 
@@ -774,12 +993,19 @@ class Deck {
     this.el.btnPlay  = el.querySelector('.tbtn.play');
     this.el.btnStop  = el.querySelector('.tbtn.stop');
 
-    /* 波形画布 */
+    /* 波形画布（画在月亮上） */
     this.waveCanvas = document.createElement('canvas');
     this.waveCanvas.width = 300;
     this.waveCanvas.height = 300;
     this.el.label.insertBefore(this.waveCanvas, this.el.hint);
     this.waveCtx = this.waveCanvas.getContext('2d');
+
+    /* 月亮绘制 */
+    this.moonCtx = this.el.moon.getContext('2d');
+    this.meteorCtx = this.el.meteor.getContext('2d');
+    this.meteors = [];
+    this.meteorRAF = null;
+    this.drawMoon();
 
     /* 进度环 SVG */
     this.el.progressArc.innerHTML = `
@@ -1314,10 +1540,186 @@ class Deck {
   updatePlayingUI(){
     this.el.btnPlay.classList.toggle('on', this.isPlaying);
     this.el.btnPlay.textContent = this.isPlaying ? '❚❚ 暂停' : '▶ 播放';
-    this.el.platter.classList.toggle('spin', this.isPlaying);
-    this.el.arm.classList.toggle('on', this.isPlaying);
+    this.el.moonSpin.classList.toggle('spin', this.isPlaying);
+    this.applySpinSpeed();
+    /* 流星：播放时开始划过，停止时清空 */
+    if (this.isPlaying) this.startMeteors();
+    else this.stopMeteors();
     this.setStateTag(this.isPlaying ? 'PLAY' : (this.buffer ? 'PAUSED' : 'IDLE'));
     this.el.stateTag.classList.toggle('playing', this.isPlaying);
+  }
+
+  /* 月亮转速跟随速度档位：1.0 = 6 秒一圈 */
+  applySpinSpeed(){
+    const dur = 6.0 / Math.max(0.1, this.speed);
+    this.el.moonSpin.style.setProperty('--spin-dur', dur.toFixed(3) + 's');
+  }
+
+  /* ---------- 梵高像素月亮 ---------- */
+  drawMoon(){
+    const c = this.moonCtx;
+    const W = this.el.moon.width, H = this.el.moon.height;
+    const cx = W/2, cy = H/2;
+    const R = W/2 - 6;
+    c.clearRect(0,0,W,H);
+
+    /* --- 月亮主体：像素化圆盘，暖黄渐变 --- */
+    const S = 6;                       // 像素块大小
+    for (let y = 0; y < H; y += S){
+      for (let x = 0; x < W; x += S){
+        const dx = x + S/2 - cx, dy = y + S/2 - cy;
+        const dist = Math.hypot(dx, dy);
+        if (dist > R) continue;
+
+        const n = dist / R;            // 0 中心 -> 1 边缘
+        const ang = Math.atan2(dy, dx);
+
+        /* 梵高的月亮是同心弧纹 + 暖黄光晕 */
+        const rings = Math.sin(n * 22 + Math.sin(ang * 3) * 0.8);
+        const glow  = Math.pow(1 - n, 0.75);
+
+        let r = 255;
+        let g = Math.round(238 - n * 46 + rings * 10);
+        let b = Math.round(150 - n * 78 + rings * 12);
+
+        /* 外圈橙金色 */
+        if (n > 0.78){
+          const k = (n - 0.78) / 0.22;
+          r = Math.round(255 - k * 12);
+          g = Math.round(196 - k * 62);
+          b = Math.round(72 - k * 30);
+        }
+        /* 中心更亮 */
+        if (n < 0.32){
+          const k = 1 - n / 0.32;
+          g = Math.min(255, g + k * 16);
+          b = Math.min(255, b + k * 46);
+        }
+
+        /* 像素抖动 */
+        const q = v => Math.max(0, Math.min(255, Math.round(v / 10) * 10));
+        c.fillStyle = `rgb(${q(r)},${q(g)},${q(b)})`;
+        c.fillRect(x, y, S, S);
+      }
+    }
+
+    /* --- 月牙暗面：挖出月牙形，但用深色星空填充（不能透明，否则露出背景） --- */
+    const biteX = cx + R * 0.42;
+    const biteY = cy + R * 0.30;
+    const biteR = R * 0.92;
+    for (let y = 0; y < H; y += S){
+      for (let x = 0; x < W; x += S){
+        const px = x + S/2, py = y + S/2;
+        const distC = Math.hypot(px - cx, py - cy);
+        if (distC > R) continue;                // 只在月亮圆盘内处理
+        const d2 = Math.hypot(px - biteX, py - biteY);
+        if (d2 < biteR){
+          const edge = biteR - d2;
+          const paint = edge > S || (edge > 0 && ((x/S + y/S) % 2 === 0));
+          if (paint){
+            /* 暗面：深蓝星空底色 + 极少量星点（避免把暗面刷白） */
+            const gx = Math.floor(x/S), gy = Math.floor(y/S);
+            const hsh = Math.abs(((gx * 73856093) ^ (gy * 19349663)) >>> 0) % 263;
+            let r2 = 10, g2 = 28, b2 = 62;
+            if (hsh < 2){ r2 = 120; g2 = 165; b2 = 220; }      // 稀疏星点
+            else if (hsh < 7){ r2 = 20; g2 = 44; b2 = 86; }    // 轻微纹理
+            c.fillStyle = `rgb(${r2},${g2},${b2})`;
+            c.fillRect(x, y, S, S);
+          }
+        }
+      }
+    }
+
+    /* --- 外圈细描边（像素点状） --- */
+    const dots = 72;
+    for (let i = 0; i < dots; i++){
+      const a = (i / dots) * Math.PI * 2;
+      const px = cx + Math.cos(a) * (R - 2);
+      const py = cy + Math.sin(a) * (R - 2);
+      c.fillStyle = 'rgba(255,226,140,.55)';
+      c.fillRect(Math.round(px/S)*S, Math.round(py/S)*S, S*0.6, S*0.6);
+    }
+  }
+
+  /* ---------- 流星 ---------- */
+  startMeteors(){
+    if (this.meteorRAF) return;
+    const c = this.meteorCtx;
+    const W = this.el.meteor.width, H = this.el.meteor.height;
+    const R = W/2 - 6;
+
+    const spawn = () => {
+      const a = Math.random() * Math.PI * 2;
+      const startR = R * (0.15 + Math.random() * 0.5);
+      this.meteors.push({
+        x: W/2 + Math.cos(a) * startR,
+        y: H/2 + Math.sin(a) * startR,
+        vx: Math.cos(a + 1.2) * (1.6 + Math.random() * 1.4),
+        vy: Math.sin(a + 1.2) * (1.6 + Math.random() * 1.4),
+        life: 1,
+        len: 18 + Math.random() * 26,
+        size: Math.random() > 0.6 ? 3 : 2,
+      });
+    };
+
+    let lastSpawn = 0;
+    const step = (ts) => {
+      if (!this.isPlaying){ this.meteorRAF = null; return; }
+      c.clearRect(0,0,W,H);
+
+      if (ts - lastSpawn > 260){
+        spawn();
+        if (Math.random() > 0.55) spawn();
+        lastSpawn = ts;
+      }
+
+      for (let i = this.meteors.length - 1; i >= 0; i--){
+        const m = this.meteors[i];
+        m.x += m.vx; m.y += m.vy;
+        m.life -= 0.016;
+
+        const dist = Math.hypot(m.x - W/2, m.y - H/2);
+        if (m.life <= 0 || dist > R * 1.02){
+          this.meteors.splice(i, 1);
+          continue;
+        }
+
+        /* 只画在月亮圆盘内 */
+        const speed = Math.hypot(m.vx, m.vy);
+        const tailX = m.x - (m.vx / speed) * m.len;
+        const tailY = m.y - (m.vy / speed) * m.len;
+
+        const grad = c.createLinearGradient(tailX, tailY, m.x, m.y);
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(0.55, `rgba(255,246,200,${0.45 * m.life})`);
+        grad.addColorStop(1, `rgba(255,255,255,${0.95 * m.life})`);
+
+        c.save();
+        c.beginPath(); c.arc(W/2, H/2, R, 0, Math.PI*2); c.clip();
+        c.strokeStyle = grad;
+        c.lineWidth = m.size;
+        c.lineCap = 'butt';
+        c.beginPath();
+        c.moveTo(tailX, tailY);
+        c.lineTo(m.x, m.y);
+        c.stroke();
+
+        /* 头部亮块（像素感） */
+        c.fillStyle = `rgba(255,255,255,${m.life})`;
+        const S2 = 4;
+        c.fillRect(Math.round(m.x/S2)*S2, Math.round(m.y/S2)*S2, S2, S2);
+        c.restore();
+      }
+
+      this.meteorRAF = requestAnimationFrame(step);
+    };
+    this.meteorRAF = requestAnimationFrame(step);
+  }
+
+  stopMeteors(){
+    if (this.meteorRAF){ cancelAnimationFrame(this.meteorRAF); this.meteorRAF = null; }
+    this.meteors = [];
+    this.meteorCtx.clearRect(0,0,this.el.meteor.width,this.el.meteor.height);
   }
 
   setStateTag(t){
@@ -1330,6 +1732,7 @@ class Deck {
     if (this.source) this.source.playbackRate.value = sp;
     else if (this.isPlaying) {}
     this.el.speedBtns.forEach(b => b.classList.toggle('on', +b.dataset.speed === sp));
+    this.applySpinSpeed();
   }
 
   /* ---------- 交叉推子 ---------- */
@@ -1362,51 +1765,47 @@ class Deck {
     c.clearRect(0,0,W,H);
     if (!this.waveCache) return;
 
-    /* 背景圆盘 */
-    c.save();
-    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.clip();
-    c.fillStyle = '#e8f2fc';
-    c.fillRect(0,0,W,H);
-
+    /* 不画实心圆盘，让波形直接融进月亮暗面 */
     const peaks = this.waveCache;
     const n = peaks.length;
-    const rInner = R * 0.42;        // 内圈（波形起点）
-    const maxLen = R * 0.50;        // 最大外扩长度
+    const rInner = R * 0.52;        // 环形波形基准半径
+    const maxLen = R * 0.36;        // 星尘环最大外扩
 
-    /* 像素化：把角度量化到固定份数，画出「块状」波形 */
-    const SEG = 128;
-    c.fillStyle = '#3f7fd4';
+    /* 沿圆周铺「星尘环」：振幅越大，对应的像素点离轴心越远 */
+    const SEG = 160;
     for (let s = 0; s < SEG; s++){
-      const a0 = (s / SEG) * Math.PI * 2 - Math.PI / 2;
-      const a1 = ((s + 1) / SEG) * Math.PI * 2 - Math.PI / 2;
-      // 取该扇区内的峰值
       const i0 = Math.floor(s / SEG * n);
       const i1 = Math.max(i0 + 1, Math.floor((s + 1) / SEG * n));
       let amp = 0;
       for (let i = i0; i < i1 && i < n; i++) amp = Math.max(amp, peaks[i]);
-      const len = Math.round((amp * maxLen) / 4) * 4;   // 4px 量化
 
-      c.beginPath();
-      c.arc(cx, cy, rInner + len, a0, a1);
-      c.arc(cx, cy, rInner, a1, a0, true);
-      c.closePath();
-      c.fill();
+      const a = ((s + 0.5) / SEG) * Math.PI * 2 - Math.PI / 2;
+      const len = Math.round((amp * maxLen) / 7) * 7;        // 7px 像素量化
+      const px = cx + Math.cos(a) * (rInner + len);
+      const py = cy + Math.sin(a) * (rInner + len);
+
+      const t = Math.min(1, amp * 1.5);
+      const size = amp > 0.45 ? 8 : 5;                        // 强拍像素块更大
+      /* 弱=暖金，强=暖白（不俗白） */
+      const rr = 255;
+      const gg = Math.round(198 + t * 44);
+      const bb = Math.round(88 + t * 96);
+      c.fillStyle = `rgba(${rr},${gg},${bb},${(0.42 + t * 0.46).toFixed(2)})`;
+      c.fillRect(Math.round(px / size) * size - size / 2, Math.round(py / size) * size - size / 2, size, size);
+
+      /* 基准线上的一圈淡金微尘 */
+      const bx = cx + Math.cos(a) * (rInner - 6);
+      const by = cy + Math.sin(a) * (rInner - 6);
+      c.fillStyle = 'rgba(255,226,140,.22)';
+      c.fillRect(Math.round(bx / 5) * 5, Math.round(by / 5) * 5, 4, 4);
     }
 
-    /* 中心提亮（留出唱片孔的位置） */
-    const g = c.createRadialGradient(cx, cy, R*0.02, cx, cy, R*0.46);
-    g.addColorStop(0, 'rgba(255,255,255,.92)');
-    g.addColorStop(0.30, 'rgba(255,255,255,.55)');
-    g.addColorStop(1, 'rgba(232,242,252,0)');
-    c.fillStyle = g;
-    c.fillRect(0,0,W,H);
-
-    c.restore();
-
-    /* 外圈描边 */
-    c.strokeStyle = '#17325c';
-    c.lineWidth = 6;
-    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.stroke();
+    /* 中心唱片轴心（像素点，不画手） */
+    const hub = R * 0.09;
+    c.fillStyle = 'rgba(255,226,140,.85)';
+    c.fillRect(Math.round((cx-hub)/4)*4, Math.round((cy-hub)/4)*4, hub*2, hub*2);
+    c.fillStyle = '#06101f';
+    c.fillRect(Math.round((cx-hub*0.45)/4)*4, Math.round((cy-hub*0.45)/4)*4, hub*0.9, hub*0.9);
   }
 }
 
@@ -1534,7 +1933,7 @@ function createDeck(index){
   return d;
 }
 
-function setDeckCount(n){
+function setDeckCount(n, silent){
   if (n === state.deckCount && state.decks.filter(Boolean).length === n) return;
 
   /* 保存已有曲目状态（含效果器/播放位置之外的轻量信息） */
@@ -1614,7 +2013,7 @@ function setDeckCount(n){
   });
 
   updateAllXf();
-  toast(`已切换为 ${n} 盘模式`);
+  if (!silent) toast(`已切换为 ${n} 盘模式`);
 }
 
 function updateAllXf(){
@@ -1771,20 +2170,22 @@ function paintStarry(){
         else if (dd < moon.r * 2.3) col = mix(col, pal.moon, (1 - (dd - moon.r)/(moon.r*1.3)) * 0.5);
       }
 
-      /* 地平线以下：村庄与丘陵 */
+      /* 地平线以下也保持星空（原画下方是村庄，这里统一成星空，避免大片黄褐色） */
       const horizon = H * 0.72 + Math.sin(x * 0.06) * 2.4;
       if (y > horizon){
+        /* 下半部：更深邃的星空，带轻微漩涡延续 */
         const k = Math.min(1, (y - horizon) / (H - horizon));
-        col = mix(pal.hill, pal.village, k * 0.85);
-        if (y > H * 0.82){
-          col = mix(col, pal.village2, (y - H*0.82) / (H*0.18));
-        }
-        /* 村庄窗户点点灯光 */
-        const wx = Math.floor(x / 3), wy = Math.floor(y / 2);
-        const hsh = ((wx * 73856093) ^ (wy * 19349663)) % 97;
-        if (y > H * 0.80 && hsh < 3) col = mix(col, pal.star, 0.85);
-      } else if (y > horizon - 8 && y <= horizon){
-        col = mix(col, pal.hill, (y - (horizon - 8)) / 8 * 0.6);
+        const t2 = (Math.sin(f * 1.35) * 0.5 + 0.5);
+        col = mix(pal.skyDeep, pal.skyMid, t2 * 0.75 + k * 0.18);
+        if (t2 > 0.66) col = mix(col, pal.skyLite, (t2 - 0.66) / 0.34 * 0.55);
+        if (t2 > 0.86) col = mix(col, pal.swirl1, (t2 - 0.86) / 0.14 * 0.7);
+        /* 下半部零星撒几颗星（用无符号哈希，避免溢出成负数导致整片变黄） */
+        const wx = Math.floor(x / 2), wy = Math.floor(y / 2);
+        const hsh = Math.abs(((wx * 73856093) ^ (wy * 19349663)) >>> 0) % 211;
+        if (hsh < 2) col = mix(col, pal.star, 0.8);
+        else if (hsh < 4) col = mix(col, pal.swirl3, 0.35);
+      } else if (y > horizon - 6 && y <= horizon){
+        col = mix(col, pal.skyDeep, (y - (horizon - 6)) / 6 * 0.5);
       }
 
       /* 左侧柏树剪影 */
@@ -1804,6 +2205,62 @@ function paintStarry(){
     }
   }
   ctx.putImageData(img, 0, 0);
+}
+
+/* --------------------------------------------------------------------------
+   8b. 背景扭曲旋涡（三层反向旋转的像素螺旋）
+   -------------------------------------------------------------------------- */
+function paintSwirls(){
+  const layers = [
+    /* id      像素块 圈数  颜色(RGB)           臂数 强度 */
+    { id:'sw-a', S:4, turns:3.4, rgb:[120, 186, 236], arms:5, alpha:.30 },
+    { id:'sw-b', S:4, turns:2.6, rgb:[176, 220, 250], arms:4, alpha:.30 },
+    { id:'sw-c', S:4, turns:3.8, rgb:[255, 226, 140], arms:4, alpha:.20 },
+  ];
+
+  layers.forEach(cfg => {
+    const cv = document.getElementById(cfg.id);
+    if (!cv) return;
+    const N = 360;                       // 画布边长（放大后像素化）
+    cv.width = N; cv.height = N;
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, N, N);
+
+    const cx = N / 2, cy = N / 2;
+    const S = cfg.S;
+    const R = N / 2 - S * 3;
+
+    for (let k = 0; k < cfg.arms; k++){
+      const phase = (k / cfg.arms) * Math.PI * 2;
+      /* 沿弧线推进，步长固定为约一个像素块，保证细丝连续不断 */
+      const aMax = Math.PI * 2 * cfg.turns;
+      for (let a = 0; a <= aMax; a += 0.004){
+        const u = a / aMax;                        // 0..1 由内到外
+        const r = R * (0.10 + u * 0.90);
+        const ang = a + phase;
+
+        const wob = Math.sin(a * 5.5 + k * 1.7) * 0.035;   // 手绘般的轻微歪斜
+        const rr = r * (1 + wob);
+        const x = cx + Math.cos(ang) * rr;
+        const y = cy + Math.sin(ang) * rr;
+
+        /* 内外羽化 */
+        const edge = Math.min(1, u / 0.09) * Math.min(1, (1 - u) / 0.18);
+        /* 笔触断续：一根一根的短线，而不是实心带 */
+        const dash = Math.sin(a * 46 + k * 3.1);
+        if (dash < 0.15) continue;
+
+        const alpha = cfg.alpha * edge * (0.35 + 0.65 * dash);
+        if (alpha < 0.025) continue;
+
+        const px = Math.round(x / S) * S;
+        const py = Math.round(y / S) * S;
+        const [cr, cg, cb] = cfg.rgb;
+        c.fillStyle = `rgba(${cr},${cg},${cb},${alpha.toFixed(3)})`;
+        c.fillRect(px, py, S, S);
+      }
+    }
+  });
 }
 
 /* --------------------------------------------------------------------------
@@ -1829,7 +2286,8 @@ function loop(){
 
 function boot(){
   paintStarry();
-  setDeckCount(2);            // 默认双盘
+  paintSwirls();
+  setDeckCount(2, true);      // 默认双盘（开机不弹提示）
 
   /* 交叉推子初始化标签 */
   document.getElementById('xf-val').textContent = '居中';
