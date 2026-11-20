@@ -1,0 +1,1858 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PIXEL DJ · 像素打碟机</title>
+<style>
+  /* ============ 基础 & 像素风变量 ============ */
+  :root{
+    --ink:      #17325c;   /* 深蓝墨线 */
+    --deep:     #0e2340;   /* 最深蓝 */
+    --blue:     #3f7fd4;   /* 主蓝 */
+    --blue-lt:  #a9cdf2;   /* 浅蓝 */
+    --blue-pale:#e8f2fc;   /* 极浅蓝 */
+    --paper:    #f4f9ff;   /* 白纸 */
+    --white:    #ffffff;
+    --gold:     #ffd85e;
+    --cyan:     #7fd8ff;
+    --red:      #ff7b7b;
+    --shadow:   #17325c;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html,body{ height:100%; }
+
+  body{
+    font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", monospace;
+    color:var(--ink);
+    background:#0a1a33;
+    overflow-x:hidden;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+  }
+
+  /* 梵高星空的像素化背景层 */
+  #starry{
+    position:fixed; inset:0; z-index:0;
+    image-rendering: pixelated;
+  }
+  #starry canvas{
+    width:100%; height:100%;
+    display:block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    filter: saturate(1.25) contrast(1.05);
+    opacity:.92;
+  }
+  /* 让背景保持明亮，只轻微压暗保证前景可读 */
+  #bg-veil{
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:
+      radial-gradient(circle at 50% 45%, rgba(10,26,51,0) 0%, rgba(10,26,51,.12) 55%, rgba(6,18,36,.42) 100%);
+  }
+
+  /* ============ 通用像素边框 ============ */
+  .pixel-box{
+    background:var(--paper);
+    border:4px solid var(--ink);
+    box-shadow:
+      0 0 0 2px var(--white) inset,
+      4px 4px 0 0 rgba(10,26,51,.55),
+      8px 8px 0 0 rgba(10,26,51,.18);
+    border-radius:0;
+  }
+
+  /* ============ 布局 ============ */
+  #app{
+    position:relative; z-index:2;
+    min-height:100vh;
+    padding:14px 18px 26px;
+    display:flex; flex-direction:column; gap:12px;
+  }
+
+  /* ---- 顶栏 ---- */
+  #topbar{
+    display:flex; align-items:center; gap:14px;
+    padding:10px 14px;
+    background:linear-gradient(180deg, #ffffff 0%, var(--blue-pale) 100%);
+    border:4px solid var(--ink);
+    box-shadow: 4px 4px 0 rgba(10,26,51,.5);
+  }
+  #logo{
+    font-size:22px; font-weight:900; letter-spacing:3px;
+    color:var(--deep);
+    text-shadow:2px 2px 0 var(--blue-lt);
+    white-space:nowrap;
+  }
+  #logo .dot{ color:var(--blue); }
+  #logo small{
+    display:block; font-size:9px; letter-spacing:2px;
+    color:var(--blue); font-weight:700; text-shadow:none;
+  }
+
+  .seg{ display:flex; border:3px solid var(--ink); background:var(--blue-pale); }
+  .seg button{
+    font:inherit; font-size:12px; font-weight:800; letter-spacing:1px;
+    padding:7px 16px; cursor:pointer; border:0; background:transparent;
+    color:var(--deep); border-right:3px solid var(--ink);
+    transition:background .08s;
+  }
+  .seg button:last-child{ border-right:0; }
+  .seg button:hover{ background:var(--white); }
+  .seg button.active{
+    background:var(--blue); color:var(--white);
+    text-shadow:1px 1px 0 var(--deep);
+    box-shadow: inset 0 0 0 2px var(--white);
+  }
+
+  #top-right{ margin-left:auto; display:flex; align-items:center; gap:12px; }
+
+  .master-wrap{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 12px; border:3px solid var(--ink); background:var(--white);
+  }
+  .master-wrap label{ font-size:10px; font-weight:800; letter-spacing:1px; }
+
+  /* 顶栏推子(横) */
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    background:transparent; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{
+    height:10px; background:var(--blue-pale);
+    border:2px solid var(--ink);
+    box-shadow: inset 2px 2px 0 rgba(23,50,92,.25);
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:16px; height:22px; margin-top:-8px;
+    background:linear-gradient(180deg,#fff 0%,var(--blue-lt) 55%,var(--blue) 100%);
+    border:2px solid var(--ink);
+    box-shadow: 2px 2px 0 rgba(23,50,92,.4);
+  }
+  input[type=range]::-moz-range-track{
+    height:10px; background:var(--blue-pale); border:2px solid var(--ink);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:14px; height:20px; border-radius:0;
+    background:linear-gradient(180deg,#fff,var(--blue));
+    border:2px solid var(--ink);
+  }
+  .val-chip{
+    min-width:44px; text-align:center;
+    font-size:10px; font-weight:800;
+    background:var(--deep); color:var(--cyan);
+    padding:3px 5px; border:2px solid var(--ink);
+  }
+
+  /* ---- 主区 ---- */
+  #decks{
+    flex:1;
+    display:grid; gap:14px;
+    grid-template-columns: repeat(2, minmax(0,1fr));
+    align-items:stretch;
+  }
+  #decks.three{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+
+  /* ---- 单个转盘 ---- */
+  .deck{
+    display:flex; flex-direction:column; gap:10px;
+    padding:12px;
+    min-width:0;
+    background:rgba(244,249,255,.80);
+    backdrop-filter:blur(2px) saturate(1.1);
+    border-color:rgba(23,50,92,.85);
+  }
+  .deck-head{
+    display:flex; align-items:center; gap:8px;
+  }
+  .deck-tag{
+    font-size:13px; font-weight:900; letter-spacing:2px;
+    background:var(--blue); color:#fff;
+    padding:4px 10px; border:3px solid var(--ink);
+    text-shadow:1px 1px 0 var(--deep);
+  }
+  .deck-name{
+    flex:1; min-width:0; font-size:10px; font-weight:700;
+    color:var(--deep); opacity:.75;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .deck-state{
+    font-size:9px; font-weight:800; letter-spacing:1px;
+    padding:3px 7px; border:2px solid var(--ink);
+    background:var(--blue-pale); color:var(--blue);
+  }
+  .deck-state.playing{ background:var(--gold); color:var(--deep); }
+
+  /* ---- 转盘(唱盘) ---- */
+  .platter-wrap{
+    position:relative;
+    width:100%; aspect-ratio:1/1;
+    max-width:340px; margin:0 auto;
+    display:grid; place-items:center;
+  }
+  .platter{
+    position:absolute; inset:0;
+    border-radius:50%;
+    border:5px solid var(--ink);
+    background:
+      repeating-conic-gradient(from 0deg, #12294a 0deg 6deg, #1d3a61 6deg 12deg);
+    box-shadow:
+      0 0 0 5px var(--blue-lt),
+      0 0 0 9px var(--ink),
+      0 10px 0 rgba(10,26,51,.35);
+    transition:transform .2s;
+  }
+  .platter.spin{ animation:spin 1.8s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* 播放进度环 */
+  .progress-arc{
+    position:absolute; inset:0;
+    border-radius:50%;
+    pointer-events:none;
+    z-index:3;
+  }
+  .progress-arc svg{ width:100%; height:100%; display:block; overflow:visible; }
+  .progress-arc .pv-bg{ fill:none; stroke:rgba(255,255,255,.22); stroke-width:5; }
+  .progress-arc .pv-fg{ fill:none; stroke:var(--cyan); stroke-width:5; stroke-linecap:butt; filter:drop-shadow(0 0 4px rgba(127,216,255,.9)); }
+
+  /* 拖放高亮 */
+  .platter-wrap.dragover .platter{
+    box-shadow:
+      0 0 0 5px var(--gold),
+      0 0 0 9px var(--ink),
+      0 0 26px rgba(255,216,94,.8);
+  }
+  .platter-wrap.dragover .label{ border-color:var(--gold); }
+
+  /* 中间标签 + 波形 */
+  .label{
+    position:absolute; inset:16%;
+    border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--white) 0%, var(--blue-pale) 45%, var(--blue-lt) 100%);
+    border:4px solid var(--ink);
+    display:grid; place-items:center;
+    overflow:hidden;
+  }
+  .label .hole{
+    position:absolute;
+    width:7%; height:7%; border-radius:50%;
+    background:var(--deep); border:2px solid var(--ink);
+    z-index:3;
+  }
+  .label canvas{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    border-radius:50%;
+  }
+  .label .empty-hint{
+    position:relative; z-index:2;
+    font-size:11px; font-weight:800; letter-spacing:1px;
+    color:var(--blue); text-align:center; padding:0 18px;
+    line-height:1.6;
+    pointer-events:none;
+  }
+
+  /* 唱臂 */
+  .arm{
+    position:absolute; top:-4%; right:2%;
+    width:10%; height:52%;
+    transform-origin: 50% 6%;
+    transform: rotate(0deg);
+    transition:transform .6s cubic-bezier(.3,1.4,.5,1);
+    pointer-events:none; z-index:4;
+  }
+  .arm::before{
+    content:""; position:absolute; left:50%; top:0;
+    width:6px; height:100%; margin-left:-3px;
+    background:linear-gradient(90deg,#fff,var(--blue-lt),var(--blue));
+    border:2px solid var(--ink);
+  }
+  .arm::after{
+    content:""; position:absolute; left:50%; bottom:-6px;
+    width:16px; height:14px; margin-left:-8px;
+    background:var(--deep); border:2px solid var(--ink);
+  }
+  .arm.on{ transform:rotate(26deg); }
+
+  /* ---- 控制条 ---- */
+  .row{ display:flex; align-items:center; gap:8px; }
+  .row-label{
+    font-size:9px; font-weight:900; letter-spacing:1px;
+    color:var(--blue); min-width:34px; text-align:right;
+  }
+
+  /* 横向音量推子 */
+  .vol-fader{ flex:1; display:flex; align-items:center; gap:6px; }
+  .vol-fader input[type=range]{ flex:1; }
+
+  /* 8档速度 */
+  .speeds{ display:grid; grid-template-columns:repeat(4,1fr); gap:4px; flex:1; }
+  .speeds button{
+    font:inherit; font-size:9px; font-weight:800;
+    padding:5px 0; cursor:pointer;
+    background:var(--white); color:var(--deep);
+    border:2px solid var(--ink);
+    box-shadow:2px 2px 0 rgba(10,26,51,.28);
+    transition:transform .05s, background .08s;
+  }
+  .speeds button:hover{ background:var(--blue-pale); }
+  .speeds button:active{ transform:translate(2px,2px); box-shadow:none; }
+  .speeds button.on{
+    background:var(--blue); color:#fff;
+    text-shadow:1px 1px 0 var(--deep);
+    box-shadow: inset 0 0 0 2px var(--white);
+  }
+
+  /* ---- 效果器旋钮区 ---- */
+  .fx-grid{
+    display:grid; grid-template-columns:repeat(4,1fr);
+    gap:6px; padding:8px 4px 2px;
+    border-top:3px dashed var(--blue-lt);
+    border-bottom:3px dashed var(--blue-lt);
+  }
+  .knob-cell{
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    user-select:none;
+  }
+  .knob{
+    position:relative;
+    width:100%; max-width:62px; aspect-ratio:1/1;
+    cursor:ns-resize;
+    touch-action:none;
+  }
+  .knob svg{ width:100%; height:100%; display:block; overflow:visible; }
+  .knob .face{ fill:var(--white); stroke:var(--ink); stroke-width:4; }
+  .knob .arc-bg{ fill:none; stroke:var(--blue-pale); stroke-width:5; }
+  .knob .arc-fg{ fill:none; stroke:var(--blue); stroke-width:5; stroke-linecap:butt; }
+  .knob .needle{ stroke:var(--deep); stroke-width:4; stroke-linecap:round; }
+  .knob .cap{ fill:var(--blue-lt); stroke:var(--ink); stroke-width:3; }
+  .knob:hover .face{ fill:var(--blue-pale); }
+  .knob.active .arc-fg{ stroke:var(--gold); }
+  .fx-name{
+    font-size:9px; font-weight:900; letter-spacing:.5px; color:var(--deep);
+  }
+  .fx-val{
+    font-size:8px; font-weight:800; color:var(--blue);
+    background:var(--blue-pale); padding:1px 4px; border:1px solid var(--ink);
+    min-width:30px; text-align:center;
+  }
+  .knob-cell.off{ opacity:.42; filter:grayscale(.5); }
+  .knob-cell.off .knob{ cursor:pointer; }
+  .fx-toggle{
+    font:inherit; font-size:8px; font-weight:900; letter-spacing:1px;
+    padding:2px 8px; cursor:pointer;
+    border:2px solid var(--ink); background:var(--white); color:var(--deep);
+    box-shadow:1px 1px 0 rgba(10,26,51,.3);
+  }
+  .fx-toggle.on{ background:var(--cyan); color:var(--deep); }
+
+  /* ---- 传输按钮 ---- */
+  .transport{ display:flex; gap:6px; }
+  .tbtn{
+    flex:1; font:inherit; font-size:11px; font-weight:900; letter-spacing:1px;
+    padding:9px 4px; cursor:pointer;
+    border:3px solid var(--ink);
+    background:linear-gradient(180deg,#fff,var(--blue-pale));
+    color:var(--deep);
+    box-shadow:3px 3px 0 rgba(10,26,51,.4);
+    transition:transform .05s, filter .1s;
+  }
+  .tbtn:hover{ filter:brightness(1.06); background:var(--white); }
+  .tbtn:active{ transform:translate(3px,3px); box-shadow:none; }
+  .tbtn.play{ background:linear-gradient(180deg,#eaffea,#9be6a8); }
+  .tbtn.play.on{ background:linear-gradient(180deg,#7ed68f,#3fae57); color:#fff; text-shadow:1px 1px 0 #1c5c2b; }
+  .tbtn.stop{ background:linear-gradient(180deg,#fff,#ffd9d9); }
+
+  /* ---- 底部混音台 ---- */
+  #mixer{
+    padding:10px 14px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  }
+  #mixer .m-title{
+    font-size:10px; font-weight:900; letter-spacing:2px; color:var(--blue);
+    writing-mode:horizontal-tb;
+  }
+  .xfader-wrap{
+    flex:1; min-width:220px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .xfader-wrap .side{
+    font-size:10px; font-weight:900; color:var(--deep);
+    background:var(--blue-pale); padding:2px 7px; border:2px solid var(--ink);
+  }
+  .xfader-wrap input[type=range]{ flex:1; min-width:0; }
+  .xfader-wrap input[type=range]::-webkit-slider-runnable-track{
+    height:14px;
+    background:var(--blue-pale);
+    border:3px solid var(--ink);
+    box-shadow: inset 0 0 0 2px var(--white), inset 2px 2px 0 rgba(23,50,92,.22);
+  }
+  .xfader-wrap input[type=range]::-webkit-slider-thumb{
+    width:22px; height:32px; margin-top:-12px;
+    background:linear-gradient(180deg,#fff 0%,var(--gold) 70%,#d9a400 100%);
+    border:3px solid var(--ink);
+    box-shadow: 2px 2px 0 rgba(23,50,92,.45);
+  }
+  .xfader-wrap input[type=range]::-moz-range-track{
+    height:14px; background:var(--blue-pale); border:3px solid var(--ink);
+  }
+  .xfader-wrap input[type=range]::-moz-range-thumb{
+    width:20px; height:30px; border-radius:0;
+    background:linear-gradient(180deg,#fff,var(--gold)); border:3px solid var(--ink);
+  }
+  .hint-strip{
+    font-size:9px; color:var(--blue); font-weight:700; letter-spacing:.5px;
+    background:var(--blue-pale); padding:5px 9px; border:2px dashed var(--blue-lt);
+  }
+
+  /* 交叉推子读数 */
+  #xf-val{ min-width:56px; }
+
+  /* ============ 弹窗 ============ */
+  #modal-layer{
+    position:fixed; inset:0; z-index:9000;
+    display:none; place-items:center;
+    background:rgba(8,20,38,.62);
+    backdrop-filter:blur(2px);
+    padding:20px;
+  }
+  #modal-layer.show{ display:grid; }
+  .modal{
+    width:min(460px, 100%);
+    animation:pop .18s steps(3,end);
+  }
+  @keyframes pop{ from{ transform:scale(.86); opacity:0; } to{ transform:scale(1); opacity:1; } }
+  .modal-head{
+    background:linear-gradient(180deg,var(--white),var(--blue-lt));
+    border-bottom:4px solid var(--ink);
+    padding:12px 16px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .modal-head .ico{ font-size:16px; }
+  .modal-head h3{
+    font-size:14px; font-weight:900; letter-spacing:2px; color:var(--deep);
+    text-shadow:1px 1px 0 var(--white);
+    flex:1;
+  }
+  .modal-body{
+    padding:16px; font-size:12px; line-height:1.75; color:var(--deep);
+    background:
+      repeating-linear-gradient(0deg, rgba(63,127,212,.045) 0px 2px, transparent 2px 4px),
+      var(--paper);
+    max-height:60vh; overflow:auto;
+  }
+  .modal-body p + p{ margin-top:8px; }
+  .modal-body code{
+    background:var(--blue-pale); border:1px solid var(--blue-lt);
+    padding:1px 4px; font-size:11px;
+  }
+  .modal-foot{
+    padding:12px 16px; display:flex; gap:10px; justify-content:flex-end;
+    border-top:4px solid var(--ink); background:var(--blue-pale);
+    flex-wrap:wrap;
+  }
+  .modal-btn{
+    font:inherit; font-size:12px; font-weight:900; letter-spacing:1px;
+    padding:9px 18px; cursor:pointer;
+    border:3px solid var(--ink);
+    background:linear-gradient(180deg,#fff,var(--blue-pale));
+    color:var(--deep);
+    box-shadow:3px 3px 0 rgba(10,26,51,.45);
+    transition:transform .05s;
+  }
+  .modal-btn:hover{ background:var(--white); }
+  .modal-btn:active{ transform:translate(3px,3px); box-shadow:none; }
+  .modal-btn.primary{
+    background:linear-gradient(180deg,var(--blue-lt),var(--blue));
+    color:#fff; text-shadow:1px 1px 0 var(--deep);
+  }
+  .modal-btn.primary:hover{ filter:brightness(1.08); }
+
+  /* URL 输入框 */
+  .field{
+    width:100%; font:inherit; font-size:12px; padding:9px 10px;
+    border:3px solid var(--ink); background:var(--white); color:var(--deep);
+    outline:none;
+  }
+  .field:focus{ box-shadow:0 0 0 3px var(--gold) inset; }
+  .field-row{ display:flex; gap:8px; margin-top:10px; }
+
+  /* 全局提示 toast */
+  #toast{
+    position:fixed; left:50%; bottom:86px; z-index:9500;
+    transform:translate(-50%, 200%);
+    background:var(--deep); color:var(--cyan);
+    font-size:12px; font-weight:800; letter-spacing:1px;
+    padding:10px 18px; border:3px solid var(--blue-lt);
+    box-shadow:4px 4px 0 rgba(0,0,0,.5);
+    transition:transform .22s cubic-bezier(.3,1.5,.5,1), opacity .22s;
+    pointer-events:none; max-width:90vw; text-align:center;
+    opacity:0;
+  }
+  #toast.show{ transform:translate(-50%,0); opacity:1; }
+
+  /* 加载中遮罩 */
+  .loading-tag{
+    font-size:9px; font-weight:900; color:var(--gold);
+    background:var(--deep); padding:2px 6px; border:2px solid var(--gold);
+  }
+
+  /* 小屏适配 */
+  @media (max-width: 980px){
+    #decks.three{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    #topbar{ flex-wrap:wrap; }
+    #top-right{ margin-left:0; width:100%; justify-content:flex-end; }
+  }
+  @media (max-width: 660px){
+    #decks, #decks.three{ grid-template-columns: 1fr; }
+    #app{ padding:10px 8px 20px; }
+    #logo{ font-size:16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 梵高星空像素背景 -->
+<div id="starry"><canvas id="starry-canvas"></canvas></div>
+<div id="bg-veil"></div>
+
+<div id="app">
+
+  <!-- ================= 顶栏 ================= -->
+  <header id="topbar">
+    <div id="logo">PIXEL<span class="dot">·</span>DJ<small>像素打碟机 v1.0</small></div>
+
+    <div class="seg" id="deck-switch">
+      <button data-n="2" class="active" title="双曲目：2 个转盘">2 盘</button>
+      <button data-n="3" title="三曲目：3 个转盘">3 盘</button>
+    </div>
+
+    <div id="top-right">
+      <div class="master-wrap">
+        <label>MASTER</label>
+        <input type="range" id="master-vol" min="0" max="100" value="80" style="width:110px">
+        <span class="val-chip" id="master-vol-val">80</span>
+      </div>
+      <button class="tbtn" id="stop-all" style="flex:0 0 auto; padding:9px 16px" title="停止全部曲目">■ 全部停止</button>
+    </div>
+  </header>
+
+  <!-- ================= 转盘区 ================= -->
+  <main id="decks" class="two">
+    <!-- 转盘由 JS 动态生成 -->
+  </main>
+
+  <!-- ================= 混音台 ================= -->
+  <section id="mixer" class="pixel-box">
+    <span class="m-title">CROSSFADER</span>
+    <div class="xfader-wrap">
+      <span class="side" id="xf-side-a">A</span>
+      <input type="range" id="xfader" min="0" max="100" value="50" title="交叉推子：左右拖动切换曲目音量">
+      <span class="side" id="xf-side-b">B</span>
+      <span class="val-chip" id="xf-val">CENTER</span>
+    </div>
+    <span class="hint-strip">拖拽旋钮 = 上下移动鼠标 &nbsp;|&nbsp; 点旋钮名字可开关效果</span>
+  </section>
+
+</div>
+
+<!-- ================= 弹窗层 ================= -->
+<div id="modal-layer">
+  <div class="modal pixel-box">
+    <div class="modal-head">
+      <span class="ico">▣</span>
+      <h3 id="modal-title">提示</h3>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<!-- toast -->
+<div id="toast"></div>
+
+<script>
+/* ==========================================================================
+   PIXEL DJ  —  像素打碟机
+   纯前端单文件实现：Web Audio API + Canvas
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   0. 全局状态
+   -------------------------------------------------------------------------- */
+const state = {
+  deckCount: 2,
+  masterVol: 0.8,
+  xfader: 0.5,          // 0 = 全 A 侧，1 = 全 B 侧
+  decks: [],            // Deck 实例
+};
+
+/* 速度档位 */
+const SPEEDS = [0.5, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0];
+
+/* 效果器定义：key, 显示名, 参数名, 默认值(0~1), 是否默认开启 */
+const FX_DEFS = [
+  { key:'delay',  name:'延迟', short:'DLY', def:0.28, on:true  },
+  { key:'reverb', name:'混响', short:'REV', def:0.30, on:true  },
+  { key:'flanger',name:'镶边', short:'FLG', def:0.22, on:true  },
+  { key:'crush',  name:'磨碎', short:'CRS', def:0.18, on:true  },
+];
+
+/* --------------------------------------------------------------------------
+   1. 音频引擎（全局唯一 AudioContext，必须用户手势后才能启动）
+   -------------------------------------------------------------------------- */
+let AC = null;
+let masterGain = null;
+let masterComp = null;
+let analyser = null;   // 全局分析器（可视化备用）
+
+function ensureAudio(){
+  if (AC) return AC;
+  AC = new (window.AudioContext || window.webkitAudioContext)();
+
+  masterGain = AC.createGain();
+  masterGain.gain.value = state.masterVol;
+
+  masterComp = AC.createDynamicsCompressor();
+  masterComp.threshold.value = -14;
+  masterComp.knee.value = 22;
+  masterComp.ratio.value = 4;
+  masterComp.attack.value = 0.004;
+  masterComp.release.value = 0.22;
+
+  analyser = AC.createAnalyser();
+  analyser.fftSize = 1024;
+
+  masterGain.connect(masterComp);
+  masterComp.connect(analyser);
+  analyser.connect(AC.destination);
+
+  return AC;
+}
+
+/* 需要用户手势时解锁音频 */
+async function unlockAudio(){
+  ensureAudio();
+  if (AC.state === 'suspended') {
+    try { await AC.resume(); } catch(e){}
+  }
+}
+
+/* --------------------------------------------------------------------------
+   2. 磨碎效果用的降采样处理（ScriptProcessor，兼容性最好）
+   -------------------------------------------------------------------------- */
+class BitCrusher {
+  constructor(ctx, bufSize = 2048){
+    this.ctx = ctx;
+    this.processor = ctx.createScriptProcessor(bufSize, 1, 1);
+    this.bits = 16;          // 位数
+    this.reduction = 1;      // 降采样倍数
+    this.counter = 0;
+    this.hold = 0;
+    this.enabled = true;
+
+    this.processor.onaudioprocess = (e) => {
+      const inp = e.inputBuffer.getChannelData(0);
+      const out = e.outputBuffer.getChannelData(0);
+      if (!this.enabled) { out.set(inp); return; }
+
+      const step = Math.pow(2, this.bits) / 2;
+      const red = Math.max(1, Math.round(this.reduction));
+
+      for (let i = 0; i < inp.length; i++){
+        if (this.counter % red === 0){
+          // 量化 + 保持
+          let s = Math.round(inp[i] * step) / step;
+          this.hold = s;
+        }
+        this.counter++;
+        // 轻微软饱和，更像"磨碎"而非数字爆音
+        out[i] = Math.tanh(this.hold * 1.6) * 0.75;
+      }
+    };
+  }
+  setAmount(v){ // v: 0~1
+    // v 越大 = 位数越低 + 降采样越狠
+    this.bits = 16 - v * 13;                 // 16 -> 3 bit
+    this.reduction = 1 + v * v * 48;         // 1 -> 49x
+    this.processor.onaudioprocess = this.processor.onaudioprocess; // no-op, 参数即时生效
+  }
+  get node(){ return this.processor; }
+}
+
+/* --------------------------------------------------------------------------
+   3. Deck —— 单个转盘
+   -------------------------------------------------------------------------- */
+let deckSeq = 0;
+
+class Deck {
+  constructor(index){
+    this.index = index;            // 0,1,2
+    this.id = 'deck-' + (++deckSeq);
+    this.letter = String.fromCharCode(65 + index); // A B C
+
+    this.buffer = null;            // AudioBuffer
+    this.source = null;            // AudioBufferSourceNode
+    this.isPlaying = false;
+    this.speed = 1.0;
+    this.volume = 0.8;
+
+    this.fxState = {};             // key -> {amount, on}
+    FX_DEFS.forEach(d => this.fxState[d.key] = { amount: d.def, on: d.on });
+
+    this.el = {};                  // DOM 引用
+    this.waveCache = null;         // 波形峰值缓存
+
+    this.buildDOM();
+    this.buildAudioGraph();
+  }
+
+  /* ---------- DOM ---------- */
+  buildDOM(){
+    const el = document.createElement('article');
+    el.className = 'deck pixel-box';
+    el.innerHTML = `
+      <div class="deck-head">
+        <span class="deck-tag">DECK ${this.letter}</span>
+        <span class="deck-name" title="当前曲目">未加载曲目</span>
+        <span class="deck-state">IDLE</span>
+      </div>
+
+      <div class="platter-wrap" title="拖入 MP3/WAV 文件，或点击转盘加载">
+        <div class="platter"></div>
+        <div class="progress-arc"></div>
+        <div class="label">
+          <div class="empty-hint">点击 / 拖入<br>音频文件</div>
+          <div class="hole"></div>
+        </div>
+        <div class="arm"></div>
+      </div>
+
+      <div class="row">
+        <span class="row-label">音量</span>
+        <div class="vol-fader">
+          <input type="range" min="0" max="100" value="80">
+          <span class="val-chip vv">80</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <span class="row-label">速度</span>
+        <div class="speeds"></div>
+      </div>
+
+      <div class="fx-grid"></div>
+
+      <div class="transport">
+        <button class="tbtn load" title="加载本地音频文件">▤ 加载</button>
+        <button class="tbtn url" title="粘贴网页音频链接">🌐 链接</button>
+        <button class="tbtn play" title="播放 / 暂停">▶ 播放</button>
+        <button class="tbtn stop" title="停止并回到开头">■ 停止</button>
+      </div>
+    `;
+    this.root = el;
+
+    /* 引用 */
+    this.el.platterWrap = el.querySelector('.platter-wrap');
+    this.el.platter     = el.querySelector('.platter');
+    this.el.progressArc = el.querySelector('.progress-arc');
+    this.el.label       = el.querySelector('.label');
+    this.el.hint        = el.querySelector('.empty-hint');
+    this.el.arm         = el.querySelector('.arm');
+    this.el.name        = el.querySelector('.deck-name');
+    this.el.stateTag    = el.querySelector('.deck-state');
+
+    this.el.vol     = el.querySelector('.vol-fader input');
+    this.el.volVal  = el.querySelector('.vv');
+    this.el.speeds  = el.querySelector('.speeds');
+    this.el.fxGrid  = el.querySelector('.fx-grid');
+
+    this.el.btnLoad  = el.querySelector('.tbtn.load');
+    this.el.btnUrl   = el.querySelector('.tbtn.url');
+    this.el.btnPlay  = el.querySelector('.tbtn.play');
+    this.el.btnStop  = el.querySelector('.tbtn.stop');
+
+    /* 波形画布 */
+    this.waveCanvas = document.createElement('canvas');
+    this.waveCanvas.width = 300;
+    this.waveCanvas.height = 300;
+    this.el.label.insertBefore(this.waveCanvas, this.el.hint);
+    this.waveCtx = this.waveCanvas.getContext('2d');
+
+    /* 进度环 SVG */
+    this.el.progressArc.innerHTML = `
+      <svg viewBox="0 0 100 100">
+        <circle class="pv-bg" cx="50" cy="50" r="46"/>
+        <circle class="pv-fg" cx="50" cy="50" r="46"
+                stroke-dasharray="0 289" transform="rotate(-90 50 50)"/>
+      </svg>`;
+    this.pvFg = this.el.progressArc.querySelector('.pv-fg');
+
+    /* 速度按钮 */
+    SPEEDS.forEach(sp => {
+      const b = document.createElement('button');
+      b.textContent = sp.toFixed(sp % 1 === 0 ? 1 : 2).replace(/0$/,'') + '×';
+      b.textContent = (sp === 1.0 || sp === 2.0 || sp === 0.5) ? sp.toFixed(1) + '×' : String(sp) + '×';
+      b.dataset.speed = sp;
+      b.title = '速度 ' + sp + '×';
+      if (sp === 1.0) b.classList.add('on');
+      b.addEventListener('click', () => this.setSpeed(sp));
+      this.el.speeds.appendChild(b);
+    });
+    this.el.speedBtns = [...this.el.speeds.children];
+
+    /* 效果器旋钮 */
+    this.knobs = {};
+    FX_DEFS.forEach(def => this.buildKnob(def));
+
+    this.bindEvents();
+  }
+
+  buildKnob(def){
+    const cell = document.createElement('div');
+    cell.className = 'knob-cell' + (this.fxState[def.key].on ? '' : ' off');
+
+    const knob = document.createElement('div');
+    knob.className = 'knob';
+    knob.title = `上下拖动调节「${def.name}」强度`;
+    knob.innerHTML = `
+      <svg viewBox="0 0 100 100">
+        <circle class="arc-bg" cx="50" cy="50" r="40"
+                stroke-dasharray="188.5 251.3" transform="rotate(135 50 50)"/>
+        <circle class="arc-fg" cx="50" cy="50" r="40"
+                stroke-dasharray="0 251.3" transform="rotate(135 50 50)"/>
+        <circle class="face" cx="50" cy="50" r="29"/>
+        <line class="needle" x1="50" y1="50" x2="50" y2="26"/>
+        <circle class="cap" cx="50" cy="50" r="7"/>
+      </svg>`;
+    const arcFg  = knob.querySelector('.arc-fg');
+    const needle = knob.querySelector('.needle');
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'fx-name';
+    nameEl.textContent = def.name;
+    nameEl.title = `点击开关「${def.name}」`;
+
+    const valEl = document.createElement('div');
+    valEl.className = 'fx-val';
+
+    const toggle = document.createElement('button');
+    toggle.className = 'fx-toggle' + (this.fxState[def.key].on ? ' on' : '');
+    toggle.textContent = this.fxState[def.key].on ? 'ON' : 'OFF';
+    toggle.title = `开关「${def.name}」`;
+
+    cell.append(knob, nameEl, valEl, toggle);
+
+    /* 拖拽调节 */
+    let dragging = false, startY = 0, startVal = 0;
+    const apply = (v) => {
+      v = Math.min(1, Math.max(0, v));
+      this.fxState[def.key].amount = v;
+      const ARC = 251.3;                 // 圆周长 (r=40)
+      arcFg.setAttribute('stroke-dasharray', `${(ARC * v).toFixed(1)} ${ARC}`);
+      const ang = 135 + 270 * v;         // 135° -> 405°
+      const rad = ang * Math.PI / 180;
+      needle.setAttribute('x2', (50 + 24 * Math.cos(rad)).toFixed(2));
+      needle.setAttribute('y2', (50 + 24 * Math.sin(rad)).toFixed(2));
+      valEl.textContent = Math.round(v * 100);
+      this.applyFx(def.key);
+    };
+    this.knobs[def.key] = { apply, arcFg, needle, valEl, knob, cell, toggle };
+
+    /* 指针按下：准备拖拽（不立即改变数值） */
+    knob.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      dragging = true;
+      startY = e.clientY;
+      startVal = this.fxState[def.key].amount;
+      try { knob.setPointerCapture(e.pointerId); } catch(_){}
+      knob.classList.add('active');
+      e.preventDefault();
+    });
+    /* 指针移动：相对移动量调节（阈值 3px，避免点一下就跳变） */
+    let moved = false;
+    knob.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dy = startY - e.clientY;
+      if (!moved && Math.abs(dy) < 3) return;   // 死区
+      moved = true;
+      apply(startVal + dy / 140);               // 上移增大，140px 走完全程
+    });
+    const endDrag = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      moved = false;
+      knob.classList.remove('active');
+      try { knob.releasePointerCapture(e.pointerId); } catch(_){}
+    };
+    knob.addEventListener('pointerup', endDrag);
+    knob.addEventListener('pointercancel', endDrag);
+    /* 双击复位到默认值 */
+    knob.addEventListener('dblclick', () => apply(def.def));
+    /* 滚轮微调（额外便利） */
+    knob.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const step = (e.shiftKey ? 0.005 : 0.03) * (e.deltaY > 0 ? -1 : 1);
+      apply(this.fxState[def.key].amount + step);
+    }, { passive:false });
+
+    const doToggle = () => this.toggleFx(def.key);
+    nameEl.addEventListener('click', doToggle);
+    toggle.addEventListener('click', doToggle);
+
+    this.el.fxGrid.appendChild(cell);
+    apply(this.fxState[def.key].amount);
+  }
+
+  /* ---------- 音频图 ----------
+     source -> gain(音量) -> [crush? -> flanger? -> delay? -> reverb?] -> xfGain -> master
+  */
+  buildAudioGraph(){
+    this.gain = null;       // 延迟创建，ctx 可能还没解锁
+    this.nodes = null;
+  }
+
+  initNodes(){
+    if (this.nodes) return;
+    const ctx = ensureAudio();
+
+    /* 主链路节点 */
+    this.gain = ctx.createGain();
+    this.gain.gain.value = this.volume;
+
+    this.xfGain = ctx.createGain();   // 交叉推子分配
+    this.xfGain.gain.value = this.computeXf();
+    this.xfGain.connect(masterGain);
+
+    /* 效果器节点池 */
+    this.fxNodes = {};
+
+    // 磨碎：ScriptProcessor 直通型
+    this.fxNodes.crush = { bc: new BitCrusher(ctx, 2048) };
+
+    // 镶边：带 LFO 调制的短延迟 + 反馈，并联 dry/wet
+    {
+      const input = ctx.createGain();
+      const d     = ctx.createDelay(0.05);
+      const fb    = ctx.createGain();
+      const lfo   = ctx.createOscillator();
+      const lfoG  = ctx.createGain();
+      const wet   = ctx.createGain();
+      const dry   = ctx.createGain();
+      d.delayTime.value  = 0.005;
+      fb.gain.value      = 0.5;
+      lfo.type           = 'sine';
+      lfo.frequency.value = 0.35;
+      lfoG.gain.value    = 0.0025;
+      lfo.connect(lfoG);
+      lfoG.connect(d.delayTime);
+      lfo.start();
+      this.fxNodes.flanger = { input, d, fb, lfo, lfoG, wet, dry };
+    }
+
+    // 延迟：反馈回声，并联 dry/wet
+    {
+      const input = ctx.createGain();
+      const d     = ctx.createDelay(2.5);
+      const fb    = ctx.createGain();
+      const damp  = ctx.createBiquadFilter();   // 回声高频衰减，更像真回声
+      const wet   = ctx.createGain();
+      const dry   = ctx.createGain();
+      damp.type = 'lowpass';
+      damp.frequency.value = 3600;
+      d.delayTime.value = 0.26;
+      fb.gain.value = 0.36;
+      this.fxNodes.delay = { input, d, fb, damp, wet, dry };
+    }
+
+    // 混响：卷积，并联 dry/wet
+    {
+      const input = ctx.createGain();
+      const conv  = ctx.createConvolver();
+      const wet   = ctx.createGain();
+      const dry   = ctx.createGain();
+      conv.buffer = makeImpulse(ctx, 1.8, 2.6);
+      this.fxNodes.reverb = { input, conv, wet, dry };
+    }
+
+    this.nodes = true;
+    this.rebuildFxChain();
+  }
+
+  /* 重建效果链（开关效果器时调用） */
+  rebuildFxChain(){
+    if (!this.gain || !this.fxNodes) return;
+
+    const F = this.fxNodes;
+
+    /* 1. 先全部断开，避免重复连接导致音量叠加/爆音 */
+    try { this.gain.disconnect(); } catch(_){}
+    try { F.crush.bc.node.disconnect(); } catch(_){}
+
+    { const n = F.flanger;
+      n.input.disconnect(); n.d.disconnect(); n.fb.disconnect();
+      n.wet.disconnect(); n.dry.disconnect(); if (n.out) try{ n.out.disconnect(); }catch(_){}
+    }
+    { const n = F.delay;
+      n.input.disconnect(); n.d.disconnect(); n.fb.disconnect(); n.damp.disconnect();
+      n.wet.disconnect(); n.dry.disconnect(); if (n.out) try{ n.out.disconnect(); }catch(_){}
+    }
+    { const n = F.reverb;
+      n.input.disconnect(); n.conv.disconnect();
+      n.wet.disconnect(); n.dry.disconnect(); if (n.out) try{ n.out.disconnect(); }catch(_){}
+    }
+
+    /* 2. 串联接线 */
+    this.finalizeChain(this.gain);
+  }
+
+  finalizeChain(startNode){
+    const F = this.fxNodes;
+    let prev = startNode;
+
+    // 磨碎：直通型，开启才串入
+    if (this.fxState.crush.on){
+      prev.connect(F.crush.bc.node);
+      prev = F.crush.bc.node;
+    }
+
+    // 镶边 dry/wet
+    {
+      const n = F.flanger;
+      n.wet.gain.value = this.fxState.flanger.on ? this.fxState.flanger.amount * 0.85 : 0;
+      n.dry.gain.value = 1;
+      prev.connect(n.input);
+      n.input.connect(n.d);
+      n.d.connect(n.fb);
+      n.fb.connect(n.d);
+      n.d.connect(n.wet);
+      n.input.connect(n.dry);
+      // 干湿汇总到一个小 out
+      const out = n.out || (n.out = AC.createGain());
+      try { out.disconnect(); } catch(_){}
+      n.dry.connect(out);
+      n.wet.connect(out);
+      prev = out;
+    }
+
+    // 延迟 dry/wet
+    {
+      const n = F.delay;
+      n.wet.gain.value = this.fxState.delay.on ? this.fxState.delay.amount * 0.75 : 0;
+      n.dry.gain.value = 1;
+      prev.connect(n.input);
+      n.input.connect(n.d);
+      n.d.connect(n.damp);
+      n.damp.connect(n.fb);
+      n.fb.connect(n.d);
+      n.damp.connect(n.wet);
+      n.input.connect(n.dry);
+      const out = n.out || (n.out = AC.createGain());
+      try { out.disconnect(); } catch(_){}
+      n.dry.connect(out);
+      n.wet.connect(out);
+      prev = out;
+    }
+
+    // 混响 dry/wet
+    {
+      const n = F.reverb;
+      n.wet.gain.value = this.fxState.reverb.on ? this.fxState.reverb.amount * 0.7 : 0;
+      n.dry.gain.value = 1;
+      prev.connect(n.input);
+      n.input.connect(n.dry);
+      n.input.connect(n.conv);
+      n.conv.connect(n.wet);
+      const out = n.out || (n.out = AC.createGain());
+      try { out.disconnect(); } catch(_){}
+      n.dry.connect(out);
+      n.wet.connect(out);
+      prev = out;
+    }
+
+    // 汇入交叉推子 -> master
+    prev.connect(this.xfGain);
+    if (!this.xfGain.__connected){
+      this.xfGain.connect(masterGain);
+      this.xfGain.__connected = true;
+    }
+
+    // 应用参数
+    ['crush','flanger','delay','reverb'].forEach(k => this.applyFx(k));
+  }
+
+  /* 把 0~1 的 amount 映射到实际参数（amount=0 时等于无效果） */
+  applyFx(key){
+    if (!this.fxNodes) return;
+    const st = this.fxState[key];
+    const v = st.on ? st.amount : 0;
+
+    if (key === 'crush' && this.fxNodes.crush){
+      this.fxNodes.crush.bc.enabled = st.on;
+      this.fxNodes.crush.bc.setAmount(v);
+    }
+    if (key === 'delay' && this.fxNodes.delay){
+      const n = this.fxNodes.delay;
+      n.wet.gain.value = v * 0.8;
+      n.dry.gain.value = 1 - v * 0.35;
+      n.fb.gain.value  = v * 0.62;                  // 0 -> 0.62，避免反馈过强啸叫
+      n.d.delayTime.value = 0.14 + v * 0.46;
+      n.damp.frequency.value = 1200 + (1 - v) * 5000;
+    }
+    if (key === 'flanger' && this.fxNodes.flanger){
+      const n = this.fxNodes.flanger;
+      n.wet.gain.value = v * 0.9;
+      n.dry.gain.value = 1;
+      n.fb.gain.value  = 0.1 + v * 0.6;
+      n.lfo.frequency.value = 0.1 + v * 1.5;
+      n.lfoG.gain.value = 0.0006 + v * 0.0042;
+    }
+    if (key === 'reverb' && this.fxNodes.reverb){
+      const n = this.fxNodes.reverb;
+      n.wet.gain.value = v * 0.75;
+      n.dry.gain.value = 1;
+    }
+  }
+
+  toggleFx(key){
+    const st = this.fxState[key];
+    st.on = !st.on;
+    const kn = this.knobs[key];
+    kn.cell.classList.toggle('off', !st.on);
+    kn.toggle.classList.toggle('on', st.on);
+    kn.toggle.textContent = st.on ? 'ON' : 'OFF';
+    this.rebuildFxChain();
+    toast(`DECK ${this.letter} · ${knk(key).name} ${st.on ? '开启' : '关闭'}`);
+  }
+
+  /* ---------- 事件 ---------- */
+  bindEvents(){
+    /* 音量 */
+    this.el.vol.addEventListener('input', () => {
+      this.volume = +this.el.vol.value / 100;
+      this.el.volVal.textContent = this.el.vol.value;
+      if (this.gain) this.gain.gain.value = this.volume;
+    });
+
+    /* 播放/暂停 */
+    this.el.btnPlay.addEventListener('click', () => this.togglePlay());
+    this.el.btnStop.addEventListener('click', () => this.stop());
+
+    /* 加载本地 */
+    this.el.btnLoad.addEventListener('click', () => this.chooseFile());
+    this.el.platterWrap.addEventListener('click', (e) => {
+      if (e.target.closest('.label')) this.chooseFile();
+    });
+
+    /* URL 加载 */
+    this.el.btnUrl.addEventListener('click', () => this.promptUrl());
+
+    /* 拖放 */
+    const wrap = this.el.platterWrap;
+    ['dragenter','dragover'].forEach(ev =>
+      wrap.addEventListener(ev, e => { e.preventDefault(); wrap.classList.add('dragover'); }));
+    ['dragleave','drop'].forEach(ev =>
+      wrap.addEventListener(ev, e => { e.preventDefault(); wrap.classList.remove('dragover'); }));
+    wrap.addEventListener('drop', e => {
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) this.loadFile(f);
+      else {
+        const t = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+        if (t) this.loadUrl(t.trim());
+      }
+    });
+  }
+
+  chooseFile(){
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'audio/mpeg,audio/mp3,audio/wav,audio/x-wav,.mp3,.wav';
+    inp.addEventListener('change', () => {
+      if (inp.files && inp.files[0]) this.loadFile(inp.files[0]);
+    });
+    inp.click();
+  }
+
+  promptUrl(){
+    openModal({
+      title:'加载网页音频',
+      body:`<p>粘贴一个<b>音频文件的直链</b>（结尾通常是 <code>.mp3</code> / <code>.wav</code>）。</p>
+            <p style="color:#a04a4a;font-size:11px">⚠ 如果对方网站不允许跨域读取，浏览器会拦截，这时请改用 [▤ 加载] 本地文件。</p>`,
+      fields:`<input class="field" id="url-input" placeholder="https://example.com/song.mp3">`,
+      buttons:[
+        { text:'取消', type:'ghost' },
+        { text:'加载', type:'primary', onClick: () => {
+            const v = document.getElementById('url-input').value.trim();
+            if (v) this.loadUrl(v);
+            return true;
+          } }
+      ]
+    });
+  }
+
+  async loadFile(file){
+    if (!file.type.startsWith('audio') && !/\.(mp3|wav)$/i.test(file.name)){
+      toast('请选择 MP3 或 WAV 音频文件');
+      return;
+    }
+    this.setStateTag('LOADING');
+    try {
+      const ab = await file.arrayBuffer();
+      await this.decodeAndLoad(ab, file.name);
+    } catch(err){
+      console.error(err);
+      this.setStateTag('ERROR');
+      toast('解码失败：这个文件可能已损坏或格式不支持');
+    }
+  }
+
+  async loadUrl(url){
+    this.setStateTag('LOADING');
+    try {
+      const res = await fetch(url, { mode:'cors' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const ab = await res.arrayBuffer();
+      const name = decodeURIComponent(url.split('/').pop().split('?')[0]) || '网页音频';
+      await this.decodeAndLoad(ab, name);
+    } catch(err){
+      console.error(err);
+      this.setStateTag('ERROR');
+      openModal({
+        title:'加载失败',
+        body:`<p>无法读取这个链接：</p>
+              <p><code>${escapeHtml(String(url)).slice(0,120)}</code></p>
+              <p>常见原因：<br>① 该网站禁止跨域读取（CORS）<br>② 链接不是音频文件直链<br>③ 网络问题</p>
+              <p>👉 建议改用 <b>[▤ 加载]</b> 选择本地文件，最稳妥。</p>`,
+        buttons:[{ text:'知道了', type:'primary' }]
+      });
+    }
+  }
+
+  async decodeAndLoad(arrayBuffer, name){
+    ensureAudio();
+    const buf = await AC.decodeAudioData(arrayBuffer.slice(0));
+    this.buffer = buf;
+    this.el.name.textContent = `${name}  ·  ${fmtTime(buf.duration)}`;
+    this.el.name.title = name;
+    this.el.hint.style.display = 'none';
+    this.waveCache = computePeaks(buf, 240);
+    this.drawWave();
+    this.setStateTag('READY');
+    toast(`DECK ${this.letter} 已加载：${name.slice(0,28)}`);
+  }
+
+  /* ---------- 播放 ---------- */
+  async togglePlay(){
+    if (!this.buffer){ toast('先加载一首音频再播放'); this.chooseFile(); return; }
+    await unlockAudio();
+
+    if (this.isPlaying){ this.pause(); }
+    else { this.play(); }
+  }
+
+  play(){
+    if (!this.buffer) return;
+    this.initNodes();
+
+    const offset = Math.min(this._offset || 0, Math.max(0, this.buffer.duration - 0.05));
+    // 如果已经播到结尾，重新从头开始
+    const startOffset = (offset >= this.buffer.duration - 0.06) ? 0 : offset;
+
+    const src = AC.createBufferSource();
+    src.buffer = this.buffer;
+    src.playbackRate.value = this.speed;
+    src.connect(this.gain);
+
+    src.onended = () => {
+      // 只有自然播放结束才重置（手动 stop/pause 时会把 onended 置空）
+      if (this.source === src && this.isPlaying){
+        this.isPlaying = false;
+        this.source = null;
+        this._offset = 0;
+        this.updatePlayingUI();
+      }
+    };
+
+    const startAt = AC.currentTime + 0.03;
+    src.start(startAt, startOffset);
+
+    this._startedAt = startAt;
+    this._startOffset = startOffset;
+    this.source = src;
+    this.isPlaying = true;
+    this.updatePlayingUI();
+  }
+
+  pause(){
+    if (!this.source) { this.isPlaying = false; return; }
+    this._offset = this.currentTime();
+    try { this.source.onended = null; this.source.stop(); } catch(_){}
+    this.source = null;
+    this.isPlaying = false;
+    this.updatePlayingUI();
+  }
+
+  stop(){
+    if (this.source){
+      try { this.source.onended = null; this.source.stop(); } catch(_){}
+      this.source = null;
+    }
+    this.isPlaying = false;
+    this._offset = 0;
+    this.updatePlayingUI();
+  }
+
+  currentTime(){
+    if (!this.isPlaying || !this.source) return this._offset || 0;
+    const played = (AC.currentTime - this._startedAt) * this.speed;
+    const t = (this._startOffset || 0) + Math.max(0, played);
+    return Math.max(0, Math.min(t, this.buffer ? this.buffer.duration : 0));
+  }
+
+  updatePlayingUI(){
+    this.el.btnPlay.classList.toggle('on', this.isPlaying);
+    this.el.btnPlay.textContent = this.isPlaying ? '❚❚ 暂停' : '▶ 播放';
+    this.el.platter.classList.toggle('spin', this.isPlaying);
+    this.el.arm.classList.toggle('on', this.isPlaying);
+    this.setStateTag(this.isPlaying ? 'PLAY' : (this.buffer ? 'PAUSED' : 'IDLE'));
+    this.el.stateTag.classList.toggle('playing', this.isPlaying);
+  }
+
+  setStateTag(t){
+    this.el.stateTag.textContent = t;
+    this.el.stateTag.classList.toggle('playing', t === 'PLAY');
+  }
+
+  setSpeed(sp){
+    this.speed = sp;
+    if (this.source) this.source.playbackRate.value = sp;
+    else if (this.isPlaying) {}
+    this.el.speedBtns.forEach(b => b.classList.toggle('on', +b.dataset.speed === sp));
+  }
+
+  /* ---------- 交叉推子 ---------- */
+  computeXf(){
+    const n = state.deckCount;
+    if (n <= 1) return 1;
+    const x = state.xfader;                     // 0..1
+    if (n === 2){
+      // index0 在左，index1 在右；中间都接近 1
+      return this.index === 0 ? Math.cos(x * Math.PI / 2) : Math.sin(x * Math.PI / 2);
+    }
+    // 三盘：A 集中在左，B 居中，C 在右
+    const pos = [0, 0.5, 1][this.index];
+    const dist = Math.abs(x - pos);
+    // 中心 1，越远越小；宽度 0.55
+    const g = Math.max(0, Math.cos(Math.min(dist / 0.56, 1) * Math.PI / 2));
+    return g;
+  }
+
+  updateXf(){
+    if (!this.xfGain) return;
+    const v = this.computeXf();
+    this.xfGain.gain.setTargetAtTime(v, AC.currentTime, 0.02);
+  }
+
+  /* ---------- 波形绘制（环形：沿圆周向外辐射，像唱片纹路） ---------- */
+  drawWave(){
+    const c = this.waveCtx, W = this.waveCanvas.width, H = this.waveCanvas.height;
+    const cx = W/2, cy = H/2, R = W/2 - 4;
+    c.clearRect(0,0,W,H);
+    if (!this.waveCache) return;
+
+    /* 背景圆盘 */
+    c.save();
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.clip();
+    c.fillStyle = '#e8f2fc';
+    c.fillRect(0,0,W,H);
+
+    const peaks = this.waveCache;
+    const n = peaks.length;
+    const rInner = R * 0.42;        // 内圈（波形起点）
+    const maxLen = R * 0.50;        // 最大外扩长度
+
+    /* 像素化：把角度量化到固定份数，画出「块状」波形 */
+    const SEG = 128;
+    c.fillStyle = '#3f7fd4';
+    for (let s = 0; s < SEG; s++){
+      const a0 = (s / SEG) * Math.PI * 2 - Math.PI / 2;
+      const a1 = ((s + 1) / SEG) * Math.PI * 2 - Math.PI / 2;
+      // 取该扇区内的峰值
+      const i0 = Math.floor(s / SEG * n);
+      const i1 = Math.max(i0 + 1, Math.floor((s + 1) / SEG * n));
+      let amp = 0;
+      for (let i = i0; i < i1 && i < n; i++) amp = Math.max(amp, peaks[i]);
+      const len = Math.round((amp * maxLen) / 4) * 4;   // 4px 量化
+
+      c.beginPath();
+      c.arc(cx, cy, rInner + len, a0, a1);
+      c.arc(cx, cy, rInner, a1, a0, true);
+      c.closePath();
+      c.fill();
+    }
+
+    /* 中心提亮（留出唱片孔的位置） */
+    const g = c.createRadialGradient(cx, cy, R*0.02, cx, cy, R*0.46);
+    g.addColorStop(0, 'rgba(255,255,255,.92)');
+    g.addColorStop(0.30, 'rgba(255,255,255,.55)');
+    g.addColorStop(1, 'rgba(232,242,252,0)');
+    c.fillStyle = g;
+    c.fillRect(0,0,W,H);
+
+    c.restore();
+
+    /* 外圈描边 */
+    c.strokeStyle = '#17325c';
+    c.lineWidth = 6;
+    c.beginPath(); c.arc(cx, cy, R, 0, Math.PI*2); c.stroke();
+  }
+}
+
+/* --------------------------------------------------------------------------
+   4. 工具函数
+   -------------------------------------------------------------------------- */
+function knk(key){ return FX_DEFS.find(d => d.key === key); }
+
+function fmtTime(s){
+  s = Math.max(0, Math.round(s));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m + ':' + String(r).padStart(2, '0');
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* 计算波形峰值 */
+function computePeaks(buffer, buckets = 240){
+  const data = buffer.getChannelData(0);
+  const ch2 = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
+  const step = Math.floor(data.length / buckets);
+  const peaks = new Float32Array(buckets);
+  for (let i = 0; i < buckets; i++){
+    let max = 0;
+    const start = i * step;
+    for (let j = 0; j < step; j += 4){
+      const v = Math.abs(data[start + j] || 0);
+      const v2 = ch2 ? Math.abs(ch2[start + j] || 0) : 0;
+      const m = Math.max(v, v2);
+      if (m > max) max = m;
+    }
+    peaks[i] = max;
+  }
+  return peaks;
+}
+
+/* 生成混响脉冲响应 */
+function makeImpulse(ctx, seconds = 2, decay = 2.5){
+  const rate = ctx.sampleRate;
+  const len = Math.floor(rate * seconds);
+  const buf = ctx.createBuffer(2, len, rate);
+  for (let ch = 0; ch < 2; ch++){
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++){
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
+    }
+  }
+  return buf;
+}
+
+/* --------------------------------------------------------------------------
+   5. 弹窗系统
+   -------------------------------------------------------------------------- */
+const modalLayer = document.getElementById('modal-layer');
+const modalTitle = document.getElementById('modal-title');
+const modalBody  = document.getElementById('modal-body');
+const modalFoot  = document.getElementById('modal-foot');
+let modalOpen = false;
+
+function openModal({ title, body, fields = '', buttons = [] }){
+  modalTitle.textContent = title;
+  modalBody.innerHTML = body + fields;
+  modalFoot.innerHTML = '';
+  modalOpen = true;
+
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'modal-btn' + (b.type === 'primary' ? ' primary' : '');
+    btn.textContent = b.text;
+    btn.addEventListener('click', () => {
+      let keep = false;
+      if (b.onClick) keep = b.onClick() === true;
+      if (!keep) closeModal();
+    });
+    modalFoot.appendChild(btn);
+  });
+
+  modalLayer.classList.add('show');
+  setTimeout(() => {
+    const f = modalBody.querySelector('input.field');
+    if (f) f.focus();
+  }, 30);
+}
+
+function closeModal(){
+  modalLayer.classList.remove('show');
+  modalOpen = false;
+}
+
+modalLayer.addEventListener('click', e => {
+  if (e.target === modalLayer) closeModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && modalOpen) closeModal();
+  /* 空格 = 全部播放/暂停，方便操作 */
+  if (e.code === 'Space' && !modalOpen && document.activeElement.tagName !== 'INPUT'){
+    e.preventDefault();
+    const anyPlaying = state.decks.some(d => d.isPlaying);
+    state.decks.forEach(d => { if (d.buffer) anyPlaying ? d.pause() : d.play(); });
+  }
+});
+
+/* toast */
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* --------------------------------------------------------------------------
+   6. 转盘管理
+   -------------------------------------------------------------------------- */
+const decksEl = document.getElementById('decks');
+
+function createDeck(index){
+  const d = new Deck(index);
+  state.decks[index] = d;
+  decksEl.appendChild(d.root);
+  return d;
+}
+
+function setDeckCount(n){
+  if (n === state.deckCount && state.decks.filter(Boolean).length === n) return;
+
+  /* 保存已有曲目状态（含效果器/播放位置之外的轻量信息） */
+  const saved = state.decks.filter(Boolean).map(d => ({
+    buffer: d.buffer,
+    name: d.buffer ? d.el.name.title.split('  ·  ')[0] : '',
+    vol: d.volume,
+    speed: d.speed,
+    fx: JSON.parse(JSON.stringify(d.fxState)),
+  }));
+
+  /* 销毁旧的 */
+  state.decks.filter(Boolean).forEach(d => {
+    d.stop();
+    d.root.remove();
+  });
+  state.decks = [];
+  deckSeq = 0;
+
+  state.deckCount = n;
+  decksEl.classList.toggle('three', n === 3);
+  decksEl.classList.toggle('two', n === 2);
+
+  for (let i = 0; i < n; i++) createDeck(i);
+
+  /* 恢复（回到仍存在的盘位；2->3 时新盘为空） */
+  state.decks.forEach((d, i) => {
+    const s = saved[i];
+    if (!s) return;
+
+    /* 效果器状态 */
+    if (s.fx){
+      Object.keys(s.fx).forEach(k => {
+        if (d.fxState[k]){
+          d.fxState[k].amount = s.fx[k].amount;
+          d.fxState[k].on = s.fx[k].on;
+        }
+      });
+      // 同步 UI
+      Object.keys(d.fxState).forEach(k => {
+        const st = d.fxState[k], kn = d.knobs[k];
+        kn.apply(st.amount);
+        kn.cell.classList.toggle('off', !st.on);
+        kn.toggle.classList.toggle('on', st.on);
+        kn.toggle.textContent = st.on ? 'ON' : 'OFF';
+      });
+    }
+
+    /* 音量 */
+    d.volume = s.vol;
+    d.el.vol.value = Math.round(s.vol * 100);
+    d.el.volVal.textContent = Math.round(s.vol * 100);
+
+    /* 速度 */
+    d.setSpeed(s.speed);
+
+    /* 音频 */
+    if (s.buffer){
+      d.buffer = s.buffer;
+      const dur = fmtTime(s.buffer.duration);
+      d.el.name.textContent = `${s.name}  ·  ${dur}`;
+      d.el.name.title = s.name;
+      d.el.hint.style.display = 'none';
+      d.waveCache = computePeaks(s.buffer, 240);
+      d.drawWave();
+      d.setStateTag('READY');
+    }
+  });
+
+  /* 交叉推子端标签 */
+  document.getElementById('xf-side-a').textContent = 'A';
+  document.getElementById('xf-side-b').textContent = n === 3 ? 'C' : 'B';
+
+  /* 更新开关状态 */
+  document.querySelectorAll('#deck-switch button').forEach(b => {
+    b.classList.toggle('active', +b.dataset.n === n);
+  });
+
+  updateAllXf();
+  toast(`已切换为 ${n} 盘模式`);
+}
+
+function updateAllXf(){
+  state.decks.filter(Boolean).forEach(d => d.updateXf());
+}
+
+/* --------------------------------------------------------------------------
+   7. 顶栏 / 混音台事件
+   -------------------------------------------------------------------------- */
+document.querySelectorAll('#deck-switch button').forEach(b => {
+  b.addEventListener('click', () => setDeckCount(+b.dataset.n));
+});
+
+const masterVol = document.getElementById('master-vol');
+const masterVal = document.getElementById('master-vol-val');
+masterVol.addEventListener('input', () => {
+  state.masterVol = +masterVol.value / 100;
+  masterVal.textContent = masterVol.value;
+  if (masterGain) masterGain.gain.setTargetAtTime(state.masterVol, AC.currentTime, 0.02);
+});
+
+document.getElementById('stop-all').addEventListener('click', () => {
+  state.decks.filter(Boolean).forEach(d => d.stop());
+  toast('已全部停止');
+});
+
+const xfader = document.getElementById('xfader');
+const xfVal  = document.getElementById('xf-val');
+xfader.addEventListener('input', () => {
+  state.xfader = +xfader.value / 100;
+  const v = state.xfader;
+  let txt = Math.round(v * 100) + '%';
+  if (v < 0.06) txt = state.deckCount === 3 ? 'C 侧' : 'B 侧';
+  if (v > 0.94) txt = 'A 侧';
+  if (Math.abs(v - 0.5) < 0.06) txt = state.deckCount === 3 ? 'B 居中' : '居中';
+  xfVal.textContent = txt;
+  updateAllXf();
+});
+
+/* --------------------------------------------------------------------------
+   8. 梵高星空像素背景
+   -------------------------------------------------------------------------- */
+function paintStarry(){
+  const cv = document.getElementById('starry-canvas');
+  const W = 240, H = 135;          // 低分辨率，放大后自然像素化
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+
+  /* --- 伪随机 --- */
+  let seed = 20241120;
+  const rnd = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+
+  /* --- 梵高配色 --- */
+  const pal = {
+    skyDeep:  [18, 44, 92],
+    skyMid:   [34, 76, 136],
+    skyLite:  [72, 126, 186],
+    swirl1:   [116, 176, 220],
+    swirl2:   [170, 212, 238],
+    swirl3:   [220, 240, 250],
+    star:     [255, 240, 160],
+    starHot:  [255, 255, 224],
+    moon:     [252, 244, 190],
+    village:  [16, 38, 64],
+    village2: [26, 52, 84],
+    tree:     [10, 28, 32],
+    hill:     [26, 74, 92],
+  };
+
+  const mix = (a, b, t) => [
+    a[0] + (b[0]-a[0])*t,
+    a[1] + (b[1]-a[1])*t,
+    a[2] + (b[2]-a[2])*t,
+  ];
+
+  /* --- 漩涡流场（多组，加大振幅让纹理更明显） --- */
+  const swirls = [
+    { x: W*0.30, y: H*0.22, r: 26, s: 1.3,  dir: 1  },
+    { x: W*0.62, y: H*0.16, r: 20, s: 1.15, dir: -1 },
+    { x: W*0.82, y: H*0.30, r: 26, s: 1.3,  dir: 1  },
+    { x: W*0.48, y: H*0.34, r: 15, s: 1.0,  dir: -1 },
+    { x: W*0.14, y: H*0.36, r: 18, s: 1.1,  dir: 1  },
+    { x: W*0.70, y: H*0.42, r: 16, s: 1.0,  dir: 1  },
+  ];
+
+  const field = (x, y) => {
+    let v = y * 0.16 + Math.sin(x * 0.045) * 1.1 + Math.cos(y * 0.06) * 0.7;
+    for (const s of swirls){
+      const dx = x - s.x, dy = y - s.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < s.r * 2.4){
+        const ang = Math.atan2(dy, dx);
+        const falloff = Math.max(0, 1 - dist / (s.r * 2.4));
+        // 螺旋带
+        const spiral = Math.sin((ang * 2.6 * s.dir) + dist * 0.55 * s.s);
+        v += spiral * falloff * falloff * 2.6;
+      }
+    }
+    return v;
+  };
+
+  /* --- 星星 --- */
+  const stars = [];
+  for (let i = 0; i < 26; i++){
+    stars.push({
+      x: rnd() * W,
+      y: rnd() * H * 0.62,
+      r: 1 + rnd() * 2.4,
+      hot: rnd() > 0.55,
+      ring: rnd() > 0.35,
+    });
+  }
+  /* 月亮 */
+  const moon = { x: W * 0.86, y: H * 0.16, r: 7 };
+
+  /* --- 逐像素 --- */
+  for (let y = 0; y < H; y++){
+    for (let x = 0; x < W; x++){
+      const f = field(x, y);
+      let col;
+
+      /* 天空底色：按 f 与高度混合 */
+      const t = (Math.sin(f) * 0.5 + 0.5);
+      col = mix(pal.skyDeep, pal.skyMid, Math.min(1, t * 0.9 + y / H * 0.35));
+      if (t > 0.62) col = mix(col, pal.skyLite, (t - 0.62) / 0.38 * 0.85);
+      if (t > 0.82) col = mix(col, pal.swirl1, (t - 0.82) / 0.18 * 0.9);
+      if (t > 0.93) col = mix(col, pal.swirl2, (t - 0.93) / 0.07 * 0.8);
+
+      /* 漩涡高光带 */
+      const band = Math.abs(Math.sin(f * 1.7));
+      if (band < 0.14) col = mix(col, pal.swirl3, (0.14 - band) / 0.14 * 0.75);
+
+      const idx = (y * W + x) * 4;
+
+      /* 星星 */
+      for (const s of stars){
+        const dd = Math.hypot(x - s.x, y - s.y);
+        if (dd < s.r){
+          col = mix(col, s.hot ? pal.starHot : pal.star, 0.95);
+        } else if (s.ring && dd < s.r * 2.6){
+          col = mix(col, pal.star, (1 - (dd - s.r) / (s.r * 1.6)) * 0.55);
+        }
+      }
+
+      /* 月亮 */
+      {
+        const dd = Math.hypot(x - moon.x, y - moon.y);
+        if (dd < moon.r) col = mix(col, pal.moon, 0.96);
+        else if (dd < moon.r * 2.3) col = mix(col, pal.moon, (1 - (dd - moon.r)/(moon.r*1.3)) * 0.5);
+      }
+
+      /* 地平线以下：村庄与丘陵 */
+      const horizon = H * 0.72 + Math.sin(x * 0.06) * 2.4;
+      if (y > horizon){
+        const k = Math.min(1, (y - horizon) / (H - horizon));
+        col = mix(pal.hill, pal.village, k * 0.85);
+        if (y > H * 0.82){
+          col = mix(col, pal.village2, (y - H*0.82) / (H*0.18));
+        }
+        /* 村庄窗户点点灯光 */
+        const wx = Math.floor(x / 3), wy = Math.floor(y / 2);
+        const hsh = ((wx * 73856093) ^ (wy * 19349663)) % 97;
+        if (y > H * 0.80 && hsh < 3) col = mix(col, pal.star, 0.85);
+      } else if (y > horizon - 8 && y <= horizon){
+        col = mix(col, pal.hill, (y - (horizon - 8)) / 8 * 0.6);
+      }
+
+      /* 左侧柏树剪影 */
+      {
+        const cx = W * 0.07 + Math.sin(y * 0.16) * 3;
+        const halfW = 0.9 + (y / H) * 5.2;
+        if (y > H * 0.30 && Math.abs(x - cx) < halfW){
+          col = mix(pal.tree, pal.village2, 0.25 + rnd() * 0.1);
+        }
+      }
+
+      /* 像素抖动：轻微量化，增强像素感 */
+      d[idx]     = Math.min(255, Math.round(col[0] / 8) * 8);
+      d[idx + 1] = Math.min(255, Math.round(col[1] / 8) * 8);
+      d[idx + 2] = Math.min(255, Math.round(col[2] / 8) * 8);
+      d[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+/* --------------------------------------------------------------------------
+   9. 启动
+   -------------------------------------------------------------------------- */
+function drawProgress(){
+  const C = 289; // 2πr, r=46
+  state.decks.filter(Boolean).forEach(d => {
+    if (!d.pvFg) return;
+    let p = 0;
+    if (d.buffer && d.buffer.duration > 0){
+      p = d.currentTime() / d.buffer.duration;
+    }
+    p = Math.max(0, Math.min(1, p));
+    d.pvFg.setAttribute('stroke-dasharray', `${(C * p).toFixed(1)} ${C}`);
+  });
+}
+
+function loop(){
+  drawProgress();
+  requestAnimationFrame(loop);
+}
+
+function boot(){
+  paintStarry();
+  setDeckCount(2);            // 默认双盘
+
+  /* 交叉推子初始化标签 */
+  document.getElementById('xf-val').textContent = '居中';
+
+  /* 首次点击任意处解锁音频 */
+  const unlock = () => {
+    unlockAudio().then(() => {
+      state.decks.filter(Boolean).forEach(d => {
+        if (d.buffer) d.initNodes();
+        if (d.gain) d.gain.gain.value = d.volume;
+      });
+    });
+    document.removeEventListener('pointerdown', unlock);
+    document.removeEventListener('keydown', unlock);
+  };
+  document.addEventListener('pointerdown', unlock, { once:false });
+  document.addEventListener('keydown', unlock, { once:false });
+
+  console.log('%cPIXEL DJ ready','background:#3f7fd4;color:#fff;padding:4px 8px;font-weight:bold');
+  loop();
+}
+
+boot();
+</script>
+</body>
+</html>
